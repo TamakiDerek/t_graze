@@ -1,5 +1,5 @@
 // Offline support: network first (so updates show up when there's signal), cache fallback in the paddock.
-const CACHE = "t_graze-v4";
+const CACHE = "t_graze-v5";
 const SHELL = [
   "./",
   "index.html",
@@ -17,7 +17,7 @@ const SHELL = [
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL.map((url) => new Request(url, { cache: "reload" })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (event) => {
@@ -32,7 +32,9 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
   event.respondWith(
-    fetch(request)
+    // no-cache: always check with GitHub Pages first (it otherwise lets the browser reuse files for
+    // 10 minutes, which mixes old and new versions of the app right after an update).
+    fetch(request, { cache: "no-cache" })
       .then((response) => {
         if (response.ok) {
           const copy = response.clone();
