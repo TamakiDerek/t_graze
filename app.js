@@ -133,7 +133,15 @@ function renderPaddocks() {
     const cells = tr.querySelectorAll("td");
     cells[0].textContent = r.name;
     cells[1].textContent = num(r.lastDays);
-    cells[2].textContent = num(r.cover);
+    if (r.cover == null) {
+      cells[2].textContent = "–";
+    } else {
+      const tag = document.createElement("span");
+      tag.className = `tag ${r.coverKind}`;
+      tag.textContent = r.coverKind === "v" ? `v${r.coverAge}` : "e";
+      tag.title = r.coverKind === "v" ? `Measured ${r.coverAge} day(s) ago` : "Estimated";
+      cells[2].append(String(r.cover), tag);
+    }
     cells[3].textContent = num(r.interval);
     tr.querySelector("button").dataset.name = r.name;
     tr.querySelector("button").setAttribute("aria-label", `Edit ${r.name}`);
