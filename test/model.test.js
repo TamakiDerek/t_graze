@@ -111,3 +111,8 @@ test("renaming a paddock keeps its measured cover", () => {
   s.renamePaddock("B05", "B05 Top");
   assert.deepEqual(s.data.covers, { "B05 Top": { value: 2800, date: "2026-11-20" } });
 });
+
+test("default sort directions: last grazed and cover largest first, interval smallest first", async () => {
+  const { SORT_DEFAULTS } = await import("../app/model.js");
+  assert.deepEqual(SORT_DEFAULTS, { name: "asc", lastDays: "desc", cover: "desc", interval: "asc" });
+});
