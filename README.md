@@ -29,7 +29,7 @@ There are no passwords. Each phone signs itself in anonymously and registers a s
 **Paddocks → Sync** (e.g. `202-82C`). To approve a phone, run this in the Supabase SQL editor:
 
 ```sql
-select public.approve_phone('202-82C', 'Trial farm');   -- creates the farm if it's new
+select public.approve_phone('202-82C', '77207');   -- farm 77207; a new name creates a new farm
 ```
 
 The phone picks it up within a minute (or tap **Check now**), then uploads everything it has, including
