@@ -78,9 +78,15 @@
       <div id="approved" hidden>
         <p><b id="sync-who"></b><br><span id="sync-status" class="hint"></span></p>
       </div>
-      <div class="row">
-        <button id="sync-now" type="button">Check now</button>
-      </div>
+      <form id="owner-form" class="owner">
+        <label>Your name <input id="owner-name" autocomplete="name" enterkeyhint="next"></label>
+        <label>Email <input id="owner-email" type="email" autocomplete="email" enterkeyhint="done"></label>
+        <p id="owner-status" class="hint"></p>
+        <div class="row">
+          <button type="submit">Save name</button>
+          <button id="sync-now" type="button" class="plain">Check now</button>
+        </div>
+      </form>
 
       <h2>Export</h2>
       <p class="hint">CSV files for the laptop side. They save to the phone's Download folder.</p>

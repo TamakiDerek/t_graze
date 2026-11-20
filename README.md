@@ -31,15 +31,17 @@ change, every minute, and when the app comes back to the front. The header chip 
 (all uploaded), **☁ 3** (3 changes waiting) or **☁ off** (phone not approved yet).
 
 There are no passwords. Each phone signs itself in anonymously and registers a short code, shown under
-**Paddocks → Sync** (e.g. `202-82C`). To approve a phone, run this in the Supabase SQL editor:
+**Paddocks → Sync** (e.g. `202-82C`), where its owner also enters their name and email. To approve a
+phone, run this in the Supabase SQL editor:
 
 ```sql
 select public.approve_phone('202-82C', '77207');   -- farm 77207; a new name creates a new farm
+select public.approve_phone('202-82C', '77207', 'Sam Smith', 'sam@example.com');   -- also set/correct the owner
 ```
 
 The phone picks it up within a minute (or tap **Check now**), then uploads everything it has, including
-entries made before approval. Phones waiting for approval:
-`select code, user_agent, registered_at from public.devices where approved_at is null;`
+entries made before approval. Every phone, its owner and its farm:
+`select * from public.phone_list order by approved_at nulls first, registered_at desc;`
 
 What's in Supabase (project setup is in `supabase/`: run `schema.sql`, then `phones.sql`, then turn on
 **Authentication → Sign In / Providers → Allow anonymous sign-ins**):
@@ -47,7 +49,7 @@ What's in Supabase (project setup is in `supabase/`: run `schema.sql`, then `pho
 | Table | Holds |
 |-------|-------|
 | `farms`, `farm_members` | Farms and which phones (users) belong to each |
-| `devices` | Registered phones, their codes and when they were approved |
+| `devices` | Registered phones: code, owner name and email, when registered and approved |
 | `paddocks` | Paddock names per farm |
 | `grazing_log` | One row per farm per half-day: `day`, `half`, `paddock_1`, `paddock_2` |
 | `photos` | Photo metadata: `file`, `taken_at`, `plus_code` (full 10-digit), `latitude`, `longitude`, `accuracy_m`, `altitude_m`, `storage_path` |
