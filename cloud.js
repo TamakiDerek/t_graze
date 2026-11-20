@@ -184,7 +184,12 @@ export class Cloud {
         await this.request("/rest/v1/devices", {
           method: "POST",
           headers: { Prefer: "return=minimal" },
-          body: { code, user_agent: navigator.userAgent.slice(0, 200) },
+          body: {
+            code,
+            user_agent: navigator.userAgent.slice(0, 200),
+            owner_name: this.state.owner?.name || null,
+            owner_email: this.state.owner?.email || null,
+          },
         });
       } catch (err) {
         if (err.status !== 409) throw err; // 409: already registered on an earlier try
@@ -192,6 +197,25 @@ export class Cloud {
       this.state.code = code;
       this.saveState();
     }
+  }
+
+  /** Who this phone belongs to, so whoever approves phones can tell them apart. */
+  setOwner(name, email) {
+    this.state.owner = { name: name.trim(), email: email.trim() };
+    this.state.ownerDirty = true;
+    this.saveState();
+    this.soon(200);
+  }
+
+  async pushOwner() {
+    if (!this.state.ownerDirty || !this.state.code) return;
+    await this.request(`/rest/v1/devices?user_id=eq.${this.state.session.user_id}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: { owner_name: this.state.owner?.name || null, owner_email: this.state.owner?.email || null },
+    });
+    this.state.ownerDirty = false;
+    this.saveState();
   }
 
   /** True once the phone has been approved for a farm. */
@@ -215,6 +239,7 @@ export class Cloud {
     this.onChange();
     try {
       await this.register();
+      await this.pushOwner();
       if (!this.approved && !(await this.checkApproval())) {
         this.error = null; // waiting for approval is not an error
         return;

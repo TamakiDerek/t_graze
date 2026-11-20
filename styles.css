@@ -137,6 +137,9 @@ main { padding: 8px 12px; max-width: 640px; margin: 0 auto; }
 .row .plain { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
 
 .code-line { font-size: 1.1rem; }
+.owner { display: grid; gap: 8px; }
+.owner label { display: grid; gap: 4px; font-size: 0.9rem; color: var(--muted); }
+.owner input { padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink); font-size: 1rem; }
 .code { font-family: ui-monospace, Consolas, monospace; font-size: 1.5rem; letter-spacing: 0.08em; }
 .row { display: flex; gap: 8px; }
 .row button {

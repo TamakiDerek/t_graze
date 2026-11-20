@@ -395,6 +395,7 @@ function ago(iso) {
 function renderSync() {
   const chip = $("sync");
   const waiting = cloud.waiting;
+  renderOwner();
   chip.classList.toggle("bad", Boolean(cloud.error));
   chip.textContent = cloud.busy ? "☁ …" : !cloud.approved ? "☁ off" : waiting ? `☁ ${waiting}` : "☁ ✓";
 
@@ -410,10 +411,11 @@ function renderSync() {
         : !navigator.onLine
           ? "No signal - the code appears once the phone is online."
           : cloud.displayCode
-            ? "Waiting for approval. Send this code to whoever runs the database. It checks again every minute."
+            ? "Waiting for approval. Fill in your name and email below, then send this code to the farm manager. It checks again every minute."
             : "Registering…";
   } else {
-    $("sync-who").textContent = `Approved for ${cloud.state.farmName || "the farm"} · phone ${cloud.displayCode}`;
+    $("sync-who").textContent = `Approved for ${cloud.state.farmName || "the farm"} · phone ${cloud.displayCode}`
+      + (cloud.state.owner?.name ? ` · ${cloud.state.owner.name}` : "");
     $("sync-status").textContent = cloud.busy
       ? "Syncing…"
       : `${waiting ? `${waiting} change(s) waiting to upload` : "Everything uploaded"} · last sync ${ago(cloud.state.lastSync)}`
@@ -440,6 +442,34 @@ $("sync").addEventListener("click", () => {
 });
 
 $("sync-now").addEventListener("click", () => cloud.sync());
+
+function renderOwner() {
+  const o = cloud.state.owner;
+  if (document.activeElement !== $("owner-name")) $("owner-name").value = o?.name ?? "";
+  if (document.activeElement !== $("owner-email")) $("owner-email").value = o?.email ?? "";
+  $("owner-status").textContent = !o?.name
+    ? "So the farm manager knows whose phone this is."
+    : cloud.state.ownerDirty
+      ? "Saved on the phone; uploads with the next sync."
+      : "Saved.";
+}
+
+$("owner-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const name = $("owner-name").value;
+  const email = $("owner-email").value;
+  if (!name.trim()) {
+    toast("Please enter your name", true);
+    return;
+  }
+  if (email.trim() && !$("owner-email").checkValidity()) {
+    toast("That email doesn't look right", true);
+    return;
+  }
+  document.activeElement?.blur();
+  cloud.setOwner(name, email);
+  toast("Name saved");
+});
 
 // ---------- layout ----------
 // The app bar, tabs and the paddock table's heading row are sticky; each sits under the one above.
