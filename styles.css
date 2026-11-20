@@ -50,7 +50,7 @@ button, input { font: inherit; color: inherit; }
 .gps.bad { background: #b91c1c; }
 
 .tabs {
-  position: sticky; top: 46px; z-index: 1;
+  position: sticky; top: var(--bar-h, 46px); z-index: 2;
   display: grid; grid-template-columns: repeat(3, 1fr);
   background: var(--card); border-bottom: 1px solid var(--line);
 }
@@ -100,8 +100,12 @@ main { padding: 8px 12px; max-width: 640px; margin: 0 auto; }
 
 .chips { display: flex; gap: 6px; }
 
-.paddocks { width: 100%; border-collapse: collapse; margin-top: 8px; }
-.paddocks th { padding: 0; vertical-align: bottom; border-bottom: 2px solid var(--line); }
+.paddocks { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 8px; }
+/* Heading row stays put under the app bar and tabs while the list scrolls. */
+.paddocks th {
+  position: sticky; top: var(--head-h, 90px); z-index: 1; padding: 0; vertical-align: top;
+  background: var(--bg); box-shadow: inset 0 -2px 0 var(--line);
+}
 .paddocks th button {
   width: 100%; border: 0; background: none; padding: 6px 4px; text-align: inherit;
   font-size: 0.8rem; font-weight: 600; color: var(--muted); line-height: 1.15;
@@ -110,6 +114,7 @@ main { padding: 8px 12px; max-width: 640px; margin: 0 auto; }
 .paddocks th small { display: block; font-weight: 400; font-size: 0.7rem; }
 .paddocks th .arrow { margin-left: 2px; font-size: 0.65rem; }
 .paddocks .num { text-align: right; }
+.paddocks .mid { text-align: center; }
 .paddocks td { padding: 8px 4px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
 .paddocks td.name { overflow-wrap: anywhere; }
 .paddocks .edit-col { width: 40px; }
