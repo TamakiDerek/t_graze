@@ -1,0 +1,117 @@
+:root {
+  --bg: #f6f7f2;
+  --card: #ffffff;
+  --ink: #1d2a1d;
+  --muted: #5f6b5f;
+  --line: #d9ddd2;
+  --brand: #2f6b2f;
+  --brand-ink: #ffffff;
+  --now: #e6f2dc;
+  --warn: #9a3412;
+  --ok: #1f6f3a;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121612;
+    --card: #1b211b;
+    --ink: #e5ebe2;
+    --muted: #9aa597;
+    --line: #2f382f;
+    --brand: #3f8a3f;
+    --now: #23361f;
+    --warn: #fb923c;
+    --ok: #6ee7a0;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  padding-bottom: 96px;
+}
+button, input { font: inherit; color: inherit; }
+
+.bar {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: calc(8px + env(safe-area-inset-top)) 12px 8px;
+  background: var(--brand); color: var(--brand-ink);
+}
+.bar h1 { margin: 0; font-size: 1.15rem; }
+.gps {
+  border: 0; border-radius: 999px; padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.18); color: inherit; font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.gps.bad { background: #b91c1c; }
+
+.tabs {
+  position: sticky; top: 46px; z-index: 1;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  background: var(--card); border-bottom: 1px solid var(--line);
+}
+.tabs button {
+  border: 0; background: none; padding: 10px 0; color: var(--muted);
+  border-bottom: 3px solid transparent;
+}
+.tabs button[aria-selected="true"] { color: var(--ink); font-weight: 600; border-bottom-color: var(--brand); }
+
+main { padding: 8px 12px; max-width: 640px; margin: 0 auto; }
+
+.log { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.log th { text-align: left; font-size: 0.8rem; color: var(--muted); font-weight: 500; padding: 4px; }
+.log th:first-child { width: 6.8em; }
+.log td { padding: 3px 4px; border-bottom: 1px solid var(--line); }
+.log td:first-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.log tr.pm td { border-bottom-width: 2px; }
+.log tr.now td { background: var(--now); }
+.log tr.now td:first-child { font-weight: 700; }
+.log input {
+  width: 100%; min-width: 0; padding: 8px 6px;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--card);
+}
+.log input:focus { outline: 2px solid var(--brand); outline-offset: -1px; }
+
+.wide {
+  display: block; width: 100%; margin: 12px 0; padding: 12px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--card);
+}
+
+.list { list-style: none; margin: 0; padding: 0; }
+.list li {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 4px; border-bottom: 1px solid var(--line);
+}
+.list .main { flex: 1; min-width: 0; }
+.list .name { overflow-wrap: anywhere; }
+.list .sub { color: var(--muted); font-size: 0.85rem; }
+.list button {
+  border: 1px solid var(--line); background: var(--card); border-radius: 6px; padding: 6px 10px;
+}
+.list .empty { color: var(--muted); justify-content: center; }
+
+.add { display: flex; gap: 8px; margin: 8px 0; }
+.add input { flex: 1; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
+.add button { padding: 10px 16px; border: 0; border-radius: 8px; background: var(--brand); color: var(--brand-ink); }
+
+h2 { font-size: 1rem; margin: 24px 0 4px; }
+.hint { color: var(--muted); font-size: 0.9rem; }
+
+.camera {
+  position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
+  width: 68px; height: 68px; border-radius: 50%; border: 0;
+  background: var(--brand); color: var(--brand-ink); font-size: 30px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+.camera:disabled { background: #7b827b; opacity: 0.7; }
+
+.toast {
+  position: fixed; left: 12px; right: 96px; bottom: calc(24px + env(safe-area-inset-bottom));
+  padding: 10px 14px; border-radius: 8px; background: #1d2a1d; color: #fff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3); font-size: 0.9rem;
+}
+.toast.error { background: #b91c1c; }

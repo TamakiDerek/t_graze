@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2f6b2f">
+  <title>t_graze</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="bar">
+    <h1>t_graze</h1>
+    <button id="gps" class="gps" type="button" aria-live="polite">GPS: starting…</button>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="log" aria-selected="true">Grazing</button>
+    <button role="tab" data-tab="photos" aria-selected="false">Photos</button>
+    <button role="tab" data-tab="paddocks" aria-selected="false">Paddocks</button>
+  </nav>
+
+  <main>
+    <section id="tab-log" class="tab">
+      <table class="log">
+        <thead><tr><th>Half-day</th><th>Paddock</th><th>Paddock</th></tr></thead>
+        <tbody id="log-rows"></tbody>
+      </table>
+      <button id="more" class="wide" type="button">Show 4 more weeks</button>
+    </section>
+
+    <section id="tab-photos" class="tab" hidden>
+      <p class="hint">Photos save to the phone's <b>Download</b> folder, named by date and plus code, with the GPS position inside the photo.</p>
+      <ul id="photo-list" class="list"></ul>
+    </section>
+
+    <section id="tab-paddocks" class="tab" hidden>
+      <form id="add-paddock" class="add">
+        <input id="new-paddock" placeholder="New paddock name" autocomplete="off" enterkeyhint="done">
+        <button type="submit">Add</button>
+      </form>
+      <ul id="paddock-list" class="list"></ul>
+      <h2>Export</h2>
+      <p class="hint">CSV files for the laptop side. They save to the phone's Download folder.</p>
+      <button id="export-log" class="wide" type="button">Grazing log (CSV)</button>
+      <button id="export-photos" class="wide" type="button">Photo list (CSV)</button>
+    </section>
+  </main>
+
+  <button id="camera" class="camera" type="button" disabled aria-label="Take paddock photo">📷</button>
+  <input id="camera-input" type="file" accept="image/*" capture="environment" hidden>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <datalist id="paddock-names"></datalist>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
