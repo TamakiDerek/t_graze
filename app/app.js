@@ -128,7 +128,7 @@ function renderPaddocks() {
   }
   const rows = sortPaddockStats(paddockStats(store, new Date()), paddockSort.key, paddockSort.dir).map((r) => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td class="name"></td><td class="num"></td><td class="num"></td><td class="num"></td>
+    tr.innerHTML = `<td class="name"></td><td class="mid"></td><td class="num"></td><td class="mid"></td>
       <td><button type="button" class="edit" aria-label="Edit">✏️</button></td>`;
     const cells = tr.querySelectorAll("td");
     cells[0].textContent = r.name;
@@ -441,7 +441,18 @@ $("sync").addEventListener("click", () => {
 
 $("sync-now").addEventListener("click", () => cloud.sync());
 
+// ---------- layout ----------
+// The app bar, tabs and the paddock table's heading row are sticky; each sits under the one above.
+function layoutSticky() {
+  const bar = document.querySelector(".bar").offsetHeight;
+  const tabs = document.querySelector(".tabs").offsetHeight;
+  document.documentElement.style.setProperty("--bar-h", `${bar}px`);
+  document.documentElement.style.setProperty("--head-h", `${bar + tabs}px`);
+}
+window.addEventListener("resize", layoutSticky);
+
 // ---------- start ----------
+layoutSticky();
 renderPaddockOptions();
 renderLog();
 startGps();
