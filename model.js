@@ -109,8 +109,8 @@ export function paddockStats(store, now) {
   });
 }
 
-/** Default direction when a column is first tapped: days smallest first, cover largest first. */
-export const SORT_DEFAULTS = { name: "asc", lastDays: "asc", cover: "desc", interval: "asc" };
+/** Default direction when a column is first tapped: longest since grazed first, cover largest first, interval shortest first. */
+export const SORT_DEFAULTS = { name: "asc", lastDays: "desc", cover: "desc", interval: "asc" };
 
 /** Sorts paddockStats rows; rows with no value go last whichever way round. */
 export function sortPaddockStats(rows, key, dir) {

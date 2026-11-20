@@ -109,7 +109,7 @@ $("more").addEventListener("click", () => {
 });
 
 // ---------- paddocks ----------
-const SORT_KEY = "t_graze_paddock_sort";
+const SORT_KEY = "t_graze_paddock_sort_v2"; // v2: Last grazed now defaults to largest first
 let paddockSort = { key: "lastDays", dir: SORT_DEFAULTS.lastDays };
 try {
   const saved = JSON.parse(localStorage.getItem(SORT_KEY) || "null");
