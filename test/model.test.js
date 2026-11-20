@@ -69,40 +69,45 @@ test("corrupt storage starts fresh instead of crashing", () => {
 
 test("paddock stats: days since last graze, visit-to-visit interval, cover", () => {
   const s = new Store(memory());
-  for (const p of ["A1", "A2", "B1", "Never"]) s.addPaddock(p);
+  for (const p of ["A1", "A2", "B1", "Never", "Measured", "Stale"]) s.addPaddock(p);
   // A1: visit Oct 20 pm + Oct 21 am (one visit), then Nov 10 am + pm (one visit)
   s.setSlot("2026-10-20 pm", 0, "A1");
   s.setSlot("2026-10-21 am", 0, "A1");
   s.setSlot("2026-11-10 am", 0, "A1");
   s.setSlot("2026-11-10 pm", 1, "A1");
-  // A2: grazed once
-  s.setSlot("2026-11-15 am", 0, "A2");
-  // B1: three visits, interval uses the last two
+  // A2: grazed once, yesterday
+  s.setSlot("2026-11-20 pm", 0, "A2");
+  // B1: three visits, interval uses the last two; grazed today
   s.setSlot("2026-10-01 am", 0, "B1");
   s.setSlot("2026-10-25 pm", 0, "B1");
-  s.setSlot("2026-11-18 am", 1, "B1");
-  s.data.covers = { A2: 2450, B1: 3100 };
+  s.setSlot("2026-11-21 am", 1, "B1");
+  // Measured: grazed Nov 1, measured Nov 9 -> verified, 12 days old
+  s.setSlot("2026-11-01 am", 0, "Measured");
+  // Stale: measured Oct 5, grazed since (Oct 30) -> back to the estimate
+  s.setSlot("2026-10-30 pm", 0, "Stale");
+  s.data.covers = { Measured: { value: 2650, date: "2026-11-09" }, Stale: { value: 3400, date: "2026-10-05" } };
 
   const now = new Date(2026, 10, 21, 9, 0);
   const byName = Object.fromEntries(paddockStats(s, now).map((r) => [r.name, r]));
-  assert.deepEqual(byName.A1, { name: "A1", lastDays: 11, interval: 21, cover: null });
-  assert.deepEqual(byName.A2, { name: "A2", lastDays: 6, interval: null, cover: 2450 });
-  assert.deepEqual(byName.B1, { name: "B1", lastDays: 3, interval: 24, cover: 3100 });
-  assert.deepEqual(byName.Never, { name: "Never", lastDays: null, interval: null, cover: null });
+  assert.deepEqual(byName.A1, { name: "A1", lastDays: 11, interval: 21, cover: 2500, coverKind: "e", coverAge: null });
+  assert.deepEqual(byName.A2, { name: "A2", lastDays: 1, interval: null, cover: 1500, coverKind: "e", coverAge: null });
+  assert.deepEqual(byName.B1, { name: "B1", lastDays: 0, interval: 27, cover: 1500, coverKind: "e", coverAge: null });
+  assert.deepEqual(byName.Never, { name: "Never", lastDays: null, interval: null, cover: null, coverKind: null, coverAge: null });
+  assert.deepEqual(byName.Measured, { name: "Measured", lastDays: 20, interval: null, cover: 2650, coverKind: "v", coverAge: 12 });
+  assert.deepEqual(byName.Stale, { name: "Stale", lastDays: 22, interval: null, cover: 3600, coverKind: "e", coverAge: null });
 
   const rows = paddockStats(s, now);
   const names = (key, dir) => sortPaddockStats(rows, key, dir).map((r) => r.name);
-  assert.deepEqual(names("lastDays", "asc"), ["B1", "A2", "A1", "Never"]);
-  assert.deepEqual(names("lastDays", "desc"), ["A1", "A2", "B1", "Never"]);
-  assert.deepEqual(names("cover", "desc"), ["B1", "A2", "A1", "Never"]);
-  assert.deepEqual(names("interval", "asc"), ["A1", "B1", "A2", "Never"]);
-  assert.deepEqual(names("name", "desc"), ["Never", "B1", "A2", "A1"]);
+  assert.deepEqual(names("lastDays", "asc"), ["B1", "A2", "A1", "Measured", "Stale", "Never"]);
+  assert.deepEqual(names("cover", "desc"), ["Stale", "Measured", "A1", "A2", "B1", "Never"]);
+  assert.deepEqual(names("interval", "asc"), ["A1", "B1", "A2", "Measured", "Never", "Stale"]);
+  assert.deepEqual(names("name", "desc"), ["Stale", "Never", "Measured", "B1", "A2", "A1"]);
 });
 
-test("renaming a paddock keeps its cover", () => {
+test("renaming a paddock keeps its measured cover", () => {
   const s = new Store(memory());
   s.addPaddock("B05");
-  s.data.covers = { B05: 2800 };
+  s.data.covers = { B05: { value: 2800, date: "2026-11-20" } };
   s.renamePaddock("B05", "B05 Top");
-  assert.deepEqual(s.data.covers, { "B05 Top": 2800 });
+  assert.deepEqual(s.data.covers, { "B05 Top": { value: 2800, date: "2026-11-20" } });
 });

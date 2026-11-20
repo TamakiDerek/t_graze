@@ -52,16 +52,24 @@ const dayNumber = (iso) => {
   return Math.round(Date.UTC(y, m - 1, d) / DAY_MS);
 };
 
+// Broad cover rule until real measurements exist: 1500 kg DM/ha the day after grazing,
+// growing 100 a day. A measured ("verified") cover replaces it until the paddock is next grazed.
+export const COVER_AFTER_GRAZING = 1500;
+export const COVER_GROWTH_PER_DAY = 100;
+
 /**
  * Per-paddock figures for the Paddocks table.
  * A paddock grazed on days that touch (same day or the next day) counts as one visit.
  * - lastDays: days from the latest entry to today (0 = today)
  * - interval: days between the start of the previous visit and the start of the latest one
- * - cover: from the database (derived on the laptop side); null until set
+ * - cover / coverKind / coverAge:
+ *     "v" = verified: measured on a day after the last grazing; coverAge = days since measured
+ *     "e" = estimated from the rule above (on the grazing day itself it's the 1500 residual)
+ *     null = never grazed and never measured
  */
 export function paddockStats(store, now) {
   const today = dayNumber(isoDate(now));
-  const days = new Map(); // paddock -> sorted unique day numbers it appears on
+  const days = new Map(); // paddock -> unique day numbers it appears on
   for (const [key, row] of Object.entries(store.data.log)) {
     const n = dayNumber(key.split(" ")[0]);
     for (const p of row) {
@@ -73,12 +81,30 @@ export function paddockStats(store, now) {
   return store.paddocks.map((name) => {
     const list = [...(days.get(name) ?? [])].sort((a, b) => a - b);
     const visitStarts = list.filter((d, i) => i === 0 || d - list[i - 1] > 1);
-    const cover = store.data.covers?.[name];
+    const lastGrazed = list.length ? list[list.length - 1] : null;
+    const lastDays = lastGrazed == null ? null : today - lastGrazed;
+
+    let cover = null;
+    let coverKind = null;
+    let coverAge = null;
+    const measured = store.data.covers?.[name];
+    const measuredDay = measured?.date ? dayNumber(measured.date) : null;
+    if (Number.isFinite(measured?.value) && measuredDay != null && (lastGrazed == null || measuredDay > lastGrazed)) {
+      cover = measured.value;
+      coverKind = "v";
+      coverAge = Math.max(0, today - measuredDay);
+    } else if (lastDays != null) {
+      cover = COVER_AFTER_GRAZING + COVER_GROWTH_PER_DAY * Math.max(0, lastDays - 1);
+      coverKind = "e";
+    }
+
     return {
       name,
-      lastDays: list.length ? today - list[list.length - 1] : null,
+      lastDays,
       interval: visitStarts.length > 1 ? visitStarts.at(-1) - visitStarts.at(-2) : null,
-      cover: Number.isFinite(cover) ? cover : null,
+      cover,
+      coverKind,
+      coverAge,
     };
   });
 }
@@ -142,7 +168,7 @@ export class Store {
     const clash = this.findPaddock(clean);
     if (clash && clash !== oldName) throw new Error(`"${clash}" is already on the list`);
     this.data.paddocks = this.data.paddocks.map((p) => (p === oldName ? clean : p));
-    if (this.data.covers && oldName in this.data.covers) {
+    if (this.data.covers && oldName in this.data.covers) { // measured covers: { value, date }
       this.data.covers[clean] = this.data.covers[oldName];
       if (clean !== oldName) delete this.data.covers[oldName];
     }

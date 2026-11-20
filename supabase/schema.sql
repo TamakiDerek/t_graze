@@ -23,8 +23,11 @@ create table if not exists public.paddocks (
   created_at timestamptz not null default now(),
   primary key (farm_id, name)
 );
--- Pasture cover (kg DM/ha), set from the laptop side; the phone only reads it.
+-- Measured ("verified") pasture cover in kg DM/ha and the day it was measured; set from the laptop
+-- side, the phone only reads them. Until the paddock is next grazed the phone shows this instead of
+-- its estimate (1500 the day after grazing, +100 a day).
 alter table public.paddocks add column if not exists cover integer;
+alter table public.paddocks add column if not exists cover_date date;
 -- "Haybarn" and "haybarn" are the same paddock.
 create unique index if not exists paddocks_name_ci on public.paddocks (farm_id, lower(name));
 
