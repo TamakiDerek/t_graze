@@ -44,7 +44,60 @@ export function photoName(now, shortPlusCode, usedNames) {
   return name;
 }
 
-const EMPTY = () => ({ version: 1, paddocks: [], log: {}, photos: [] });
+const EMPTY = () => ({ version: 1, paddocks: [], log: {}, photos: [], covers: {} });
+
+const DAY_MS = 86_400_000;
+const dayNumber = (iso) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return Math.round(Date.UTC(y, m - 1, d) / DAY_MS);
+};
+
+/**
+ * Per-paddock figures for the Paddocks table.
+ * A paddock grazed on days that touch (same day or the next day) counts as one visit.
+ * - lastDays: days from the latest entry to today (0 = today)
+ * - interval: days between the start of the previous visit and the start of the latest one
+ * - cover: from the database (derived on the laptop side); null until set
+ */
+export function paddockStats(store, now) {
+  const today = dayNumber(isoDate(now));
+  const days = new Map(); // paddock -> sorted unique day numbers it appears on
+  for (const [key, row] of Object.entries(store.data.log)) {
+    const n = dayNumber(key.split(" ")[0]);
+    for (const p of row) {
+      if (!p) continue;
+      if (!days.has(p)) days.set(p, new Set());
+      days.get(p).add(n);
+    }
+  }
+  return store.paddocks.map((name) => {
+    const list = [...(days.get(name) ?? [])].sort((a, b) => a - b);
+    const visitStarts = list.filter((d, i) => i === 0 || d - list[i - 1] > 1);
+    const cover = store.data.covers?.[name];
+    return {
+      name,
+      lastDays: list.length ? today - list[list.length - 1] : null,
+      interval: visitStarts.length > 1 ? visitStarts.at(-1) - visitStarts.at(-2) : null,
+      cover: Number.isFinite(cover) ? cover : null,
+    };
+  });
+}
+
+/** Default direction when a column is first tapped: days smallest first, cover largest first. */
+export const SORT_DEFAULTS = { name: "asc", lastDays: "asc", cover: "desc", interval: "asc" };
+
+/** Sorts paddockStats rows; rows with no value go last whichever way round. */
+export function sortPaddockStats(rows, key, dir) {
+  const sign = dir === "desc" ? -1 : 1;
+  const byName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+  return [...rows].sort((a, b) => {
+    if (key === "name") return sign * byName(a, b);
+    const x = a[key];
+    const y = b[key];
+    if (x == null || y == null) return x == null && y == null ? byName(a, b) : x == null ? 1 : -1;
+    return sign * (x - y) || byName(a, b);
+  });
+}
 
 export class Store {
   /** @param {Storage} storage localStorage, or any object with getItem/setItem */
@@ -89,6 +142,10 @@ export class Store {
     const clash = this.findPaddock(clean);
     if (clash && clash !== oldName) throw new Error(`"${clash}" is already on the list`);
     this.data.paddocks = this.data.paddocks.map((p) => (p === oldName ? clean : p));
+    if (this.data.covers && oldName in this.data.covers) {
+      this.data.covers[clean] = this.data.covers[oldName];
+      if (clean !== oldName) delete this.data.covers[oldName];
+    }
     for (const row of Object.values(this.data.log)) {
       row.forEach((p, i) => {
         if (p === oldName) row[i] = clean;

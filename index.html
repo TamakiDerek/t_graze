@@ -44,7 +44,31 @@
         <input id="new-paddock" placeholder="New paddock name" autocomplete="off" enterkeyhint="done">
         <button type="submit">Add</button>
       </form>
-      <ul id="paddock-list" class="list"></ul>
+      <table class="paddocks">
+        <thead>
+          <tr>
+            <th data-sort="name"><button type="button">Paddock<span class="arrow"></span></button></th>
+            <th data-sort="lastDays" class="num"><button type="button">Last grazed<small>days ago</small><span class="arrow"></span></button></th>
+            <th data-sort="cover" class="num"><button type="button">Cover<small>kg DM/ha</small><span class="arrow"></span></button></th>
+            <th data-sort="interval" class="num"><button type="button">Interval<small>days</small><span class="arrow"></span></button></th>
+            <th class="edit-col"><span class="visually-hidden">Edit</span></th>
+          </tr>
+        </thead>
+        <tbody id="paddock-rows"></tbody>
+      </table>
+      <p class="hint">Tap a heading to sort; tap it again to reverse. Interval is the days between the start of the last two grazings (back-to-back days count as one).</p>
+      <dialog id="edit-dialog" class="edit-dialog">
+        <form id="edit-form" method="dialog">
+          <h2 id="edit-title"></h2>
+          <label>Name <input id="edit-name" autocomplete="off" spellcheck="false" enterkeyhint="done"></label>
+          <p id="edit-note" class="hint"></p>
+          <div class="row">
+            <button type="submit" value="save">Save</button>
+            <button type="submit" value="remove" id="edit-remove" class="danger">Remove</button>
+            <button type="submit" value="cancel" formnovalidate class="plain">Cancel</button>
+          </div>
+        </form>
+      </dialog>
       <h2>Sync</h2>
       <div id="waiting">
         <p class="hint">This phone uploads the grazing log and photos to the farm's database once it's been approved. Until then (and whenever there's no signal) everything stays saved on the phone.</p>

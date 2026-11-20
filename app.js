@@ -1,4 +1,4 @@
-import { Store, slots, currentHalf, isoDate, photoName, logCsv, photosCsv } from "./model.js";
+import { Store, slots, currentHalf, isoDate, photoName, logCsv, photosCsv, paddockStats, sortPaddockStats, SORT_DEFAULTS } from "./model.js";
 import { encode, shortCode } from "./pluscode.js";
 import { insertExif } from "./exif.js";
 import { Cloud, pendingPhotoFiles } from "./cloud.js";
@@ -109,69 +109,98 @@ $("more").addEventListener("click", () => {
 });
 
 // ---------- paddocks ----------
-function lastGrazed() {
-  const last = new Map();
-  for (const key of Object.keys(store.data.log).sort()) {
-    for (const p of store.data.log[key]) if (p) last.set(p, key);
-  }
-  return last;
+const SORT_KEY = "t_graze_paddock_sort";
+let paddockSort = { key: "lastDays", dir: SORT_DEFAULTS.lastDays };
+try {
+  const saved = JSON.parse(localStorage.getItem(SORT_KEY) || "null");
+  if (saved && saved.key in SORT_DEFAULTS) paddockSort = saved;
+} catch {
+  /* keep the default */
 }
 
-function describeLast(key) {
-  if (!key) return "not grazed yet";
-  const [date, half] = key.split(" ");
-  const [y, m, d] = date.split("-").map(Number);
-  const then = new Date(y, m - 1, d);
-  const today = new Date();
-  const days = Math.round((new Date(today.getFullYear(), today.getMonth(), today.getDate()) - then) / 86_400_000);
-  const label = then.toLocaleDateString("en", { month: "short", day: "numeric" });
-  return `last grazed ${label} ${half} · ${days === 0 ? "today" : days === 1 ? "1 day ago" : `${days} days ago`}`;
-}
+const num = (v) => (v == null ? "–" : String(v));
 
 function renderPaddocks() {
-  const last = lastGrazed();
-  const items = store.paddocks.map((name) => {
-    const li = document.createElement("li");
-    li.innerHTML = `<div class="main"><div class="name"></div><div class="sub"></div></div>
-      <button type="button" data-act="rename">Rename</button>
-      <button type="button" data-act="remove">Remove</button>`;
-    li.querySelector(".name").textContent = name;
-    li.querySelector(".sub").textContent = describeLast(last.get(name));
-    li.dataset.name = name;
-    return li;
-  });
-  if (!items.length) {
-    const li = document.createElement("li");
-    li.className = "empty";
-    li.textContent = "No paddocks yet. Add them here, or just type them into the grazing table.";
-    items.push(li);
+  for (const th of document.querySelectorAll("#tab-paddocks th[data-sort]")) {
+    const on = th.dataset.sort === paddockSort.key;
+    th.setAttribute("aria-sort", on ? (paddockSort.dir === "asc" ? "ascending" : "descending") : "none");
+    th.querySelector(".arrow").textContent = on ? (paddockSort.dir === "asc" ? "▲" : "▼") : "";
   }
-  $("paddock-list").replaceChildren(...items);
+  const rows = sortPaddockStats(paddockStats(store, new Date()), paddockSort.key, paddockSort.dir).map((r) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td class="name"></td><td class="num"></td><td class="num"></td><td class="num"></td>
+      <td><button type="button" class="edit" aria-label="Edit">✏️</button></td>`;
+    const cells = tr.querySelectorAll("td");
+    cells[0].textContent = r.name;
+    cells[1].textContent = num(r.lastDays);
+    cells[2].textContent = num(r.cover);
+    cells[3].textContent = num(r.interval);
+    tr.querySelector("button").dataset.name = r.name;
+    tr.querySelector("button").setAttribute("aria-label", `Edit ${r.name}`);
+    return tr;
+  });
+  if (!rows.length) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="5" class="empty">No paddocks yet. Add them here, or just type them into the grazing table.</td>`;
+    rows.push(tr);
+  }
+  $("paddock-rows").replaceChildren(...rows);
 }
 
-$("paddock-list").addEventListener("click", (event) => {
-  const btn = event.target.closest("button[data-act]");
+for (const th of document.querySelectorAll("#tab-paddocks th[data-sort]")) {
+  th.querySelector("button").addEventListener("click", () => {
+    const key = th.dataset.sort;
+    paddockSort = key === paddockSort.key
+      ? { key, dir: paddockSort.dir === "asc" ? "desc" : "asc" }
+      : { key, dir: SORT_DEFAULTS[key] };
+    try {
+      localStorage.setItem(SORT_KEY, JSON.stringify(paddockSort));
+    } catch {
+      /* sorting still works for this visit */
+    }
+    renderPaddocks();
+  });
+}
+
+// Edit (pencil): rename or remove one paddock.
+let editing = null;
+$("paddock-rows").addEventListener("click", (event) => {
+  const btn = event.target.closest("button.edit");
   if (!btn) return;
-  const name = btn.closest("li").dataset.name;
+  editing = btn.dataset.name;
+  const uses = store.paddockUses(editing);
+  $("edit-title").textContent = editing;
+  $("edit-name").value = editing;
+  $("edit-remove").disabled = uses > 0;
+  $("edit-note").textContent = uses
+    ? `Used in the grazing log ${uses} time(s), so it can be renamed (the log follows) but not removed.`
+    : "Not used in the grazing log.";
+  $("edit-dialog").showModal();
+});
+
+$("edit-form").addEventListener("submit", (event) => {
+  const action = event.submitter?.value;
+  if (action === "cancel" || !editing) return;
   try {
-    if (btn.dataset.act === "rename") {
-      const next = prompt(`Rename "${name}" to:`, name);
-      if (next == null || next.trim() === name) return;
-      const clean = store.renamePaddock(name, next);
-      if (clean !== name) cloud.paddockRenamed(name, clean);
+    if (action === "save") {
+      const next = $("edit-name").value;
+      if (next.trim() === editing) return;
+      const clean = store.renamePaddock(editing, next);
+      if (clean !== editing) cloud.paddockRenamed(editing, clean);
       toast(`Renamed to "${clean}" (grazing log updated)`);
-    } else {
-      const uses = store.paddockUses(name);
-      if (uses) {
-        toast(`"${name}" is in the grazing log ${uses} time(s) - rename it instead, or clear those entries first.`, true);
+    } else if (action === "remove") {
+      if (!confirm(`Remove "${editing}" from the paddock list?`)) {
+        event.preventDefault();
         return;
       }
-      if (!confirm(`Remove "${name}" from the paddock list?`)) return;
-      store.removePaddock(name);
-      cloud.paddockRemoved(name);
+      store.removePaddock(editing);
+      cloud.paddockRemoved(editing);
+      toast(`Removed "${editing}"`);
     }
   } catch (err) {
+    event.preventDefault(); // keep the dialog open so the name can be fixed
     toast(err.message, true);
+    return;
   }
   renderPaddockOptions();
   renderPaddocks();

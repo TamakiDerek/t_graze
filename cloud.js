@@ -318,13 +318,15 @@ export class Cloud {
     const farm = this.state.farmId;
     const since = new Date(Date.now() - PULL_DAYS * 86_400_000).toISOString().slice(0, 10);
     const [paddocks, rows] = await Promise.all([
-      this.request(`/rest/v1/paddocks?select=name&farm_id=eq.${farm}`),
+      this.request(`/rest/v1/paddocks?select=name,cover&farm_id=eq.${farm}`),
       this.request(`/rest/v1/grazing_log?select=day,half,paddock_1,paddock_2&farm_id=eq.${farm}&day=gte.${since}`),
     ]);
     const data = this.store.data;
     const pendingNames = new Set(this.state.paddockOps.flatMap((o) => [o.name, o.from, o.to]));
-    for (const { name } of paddocks) {
+    data.covers = {};
+    for (const { name, cover } of paddocks) {
       if (!this.store.findPaddock(name) && !pendingNames.has(name)) data.paddocks.push(name);
+      if (cover != null) data.covers[this.store.findPaddock(name) ?? name] = cover;
     }
     const dirty = new Set(this.state.dirtyLog);
     const remote = new Set();
