@@ -13,7 +13,10 @@
 <body>
   <header class="bar">
     <h1>t_graze</h1>
-    <button id="gps" class="gps" type="button" aria-live="polite">GPS: starting…</button>
+    <div class="chips">
+      <button id="gps" class="gps" type="button" aria-live="polite">GPS: starting…</button>
+      <button id="sync" class="gps" type="button" aria-label="Sync status">☁</button>
+    </div>
   </header>
 
   <nav class="tabs" role="tablist">
@@ -42,6 +45,19 @@
         <button type="submit">Add</button>
       </form>
       <ul id="paddock-list" class="list"></ul>
+      <h2>Sync</h2>
+      <div id="waiting">
+        <p class="hint">This phone uploads the grazing log and photos to the farm's database once it's been approved. Until then (and whenever there's no signal) everything stays saved on the phone.</p>
+        <p class="code-line">This phone: <b id="phone-code" class="code">…</b></p>
+        <p id="waiting-status" class="hint"></p>
+      </div>
+      <div id="approved" hidden>
+        <p><b id="sync-who"></b><br><span id="sync-status" class="hint"></span></p>
+      </div>
+      <div class="row">
+        <button id="sync-now" type="button">Check now</button>
+      </div>
+
       <h2>Export</h2>
       <p class="hint">CSV files for the laptop side. They save to the phone's Download folder.</p>
       <button id="export-log" class="wide" type="button">Grazing log (CSV)</button>

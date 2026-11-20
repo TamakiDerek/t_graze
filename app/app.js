@@ -1,8 +1,15 @@
 import { Store, slots, currentHalf, isoDate, photoName, logCsv, photosCsv } from "./model.js";
 import { encode, shortCode } from "./pluscode.js";
 import { insertExif } from "./exif.js";
+import { Cloud, pendingPhotoFiles } from "./cloud.js";
 
 const store = new Store(localStorage);
+let wasBusy = false;
+const cloud = new Cloud(store, () => {
+  renderSync();
+  if (wasBusy && !cloud.busy) refreshAfterSync();
+  wasBusy = cloud.busy;
+});
 const $ = (id) => document.getElementById(id);
 const FIX_MAX_AGE_MS = 60_000; // a GPS fix older than this is refreshed before a photo is named
 let weeksShown = 6;
@@ -81,6 +88,7 @@ $("log-rows").addEventListener("change", (event) => {
         return;
       }
       paddock = store.addPaddock(typed);
+      cloud.paddockAdded(paddock);
       renderPaddockOptions();
       toast(`Added "${paddock}" to the paddock list`);
     }
@@ -88,6 +96,7 @@ $("log-rows").addEventListener("change", (event) => {
   input.value = paddock;
   input.dataset.saved = paddock;
   store.setSlot(input.dataset.key, Number(input.dataset.index), paddock);
+  cloud.logChanged(input.dataset.key);
 });
 
 $("log-rows").addEventListener("keydown", (event) => {
@@ -149,6 +158,7 @@ $("paddock-list").addEventListener("click", (event) => {
       const next = prompt(`Rename "${name}" to:`, name);
       if (next == null || next.trim() === name) return;
       const clean = store.renamePaddock(name, next);
+      if (clean !== name) cloud.paddockRenamed(name, clean);
       toast(`Renamed to "${clean}" (grazing log updated)`);
     } else {
       const uses = store.paddockUses(name);
@@ -158,6 +168,7 @@ $("paddock-list").addEventListener("click", (event) => {
       }
       if (!confirm(`Remove "${name}" from the paddock list?`)) return;
       store.removePaddock(name);
+      cloud.paddockRemoved(name);
     }
   } catch (err) {
     toast(err.message, true);
@@ -173,6 +184,7 @@ $("add-paddock").addEventListener("submit", (event) => {
   if (!typed) return;
   const existing = store.findPaddock(typed);
   const name = store.addPaddock(typed);
+  if (!existing) cloud.paddockAdded(name);
   toast(existing ? `"${name}" is already on the list` : `Added "${name}"`);
   input.value = "";
   renderPaddockOptions();
@@ -292,9 +304,10 @@ $("camera-input").addEventListener("change", async (event) => {
     const tagged = insertExif(new Uint8Array(await jpeg.arrayBuffer()), {
       lat, lng, altitude, accuracy, time, description: name.replace(/\.jpg$/, ""),
     });
-    download(new Blob([tagged], { type: "image/jpeg" }), name);
+    const photo = new Blob([tagged], { type: "image/jpeg" });
+    download(photo, name);
 
-    store.addPhoto({
+    const meta = {
       file: name,
       taken: time.toISOString(),
       plusCode,
@@ -302,7 +315,9 @@ $("camera-input").addEventListener("change", async (event) => {
       lng: Number(lng.toFixed(7)),
       accuracy: Math.round(accuracy * 10) / 10,
       altitude: altitude == null ? null : Math.round(altitude * 10) / 10,
-    });
+    };
+    store.addPhoto(meta);
+    await cloud.photoTaken(meta, photo);
     toast(`Saved ${name}`);
     if (!$("tab-photos").hidden) renderPhotos();
   } catch (err) {
@@ -313,13 +328,15 @@ $("camera-input").addEventListener("change", async (event) => {
   }
 });
 
-function renderPhotos() {
+async function renderPhotos() {
+  const pending = new Set(await pendingPhotoFiles().catch(() => []));
   const items = [...store.photos].reverse().map((p) => {
     const li = document.createElement("li");
     li.innerHTML = `<div class="main"><div class="name"></div><div class="sub"></div></div>`;
     li.querySelector(".name").textContent = p.file;
     const when = new Date(p.taken).toLocaleString("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-    li.querySelector(".sub").textContent = `${when} · ${p.plusCode} · ±${Math.round(p.accuracy)} m`;
+    const where = p.uploaded ? "uploaded" : pending.has(p.file) ? "waiting to upload" : "on phone only";
+    li.querySelector(".sub").textContent = `${when} · ${p.plusCode} · ±${Math.round(p.accuracy)} m · ${where}`;
     return li;
   });
   if (!items.length) {
@@ -331,15 +348,80 @@ function renderPhotos() {
   $("photo-list").replaceChildren(...items);
 }
 
+// ---------- sync ----------
+function ago(iso) {
+  if (!iso) return "never";
+  const mins = Math.round((Date.now() - new Date(iso)) / 60_000);
+  return mins < 1 ? "just now" : mins < 60 ? `${mins} min ago` : new Date(iso).toLocaleString("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function renderSync() {
+  const chip = $("sync");
+  const waiting = cloud.waiting;
+  chip.classList.toggle("bad", Boolean(cloud.error));
+  chip.textContent = cloud.busy ? "☁ …" : !cloud.approved ? "☁ off" : waiting ? `☁ ${waiting}` : "☁ ✓";
+
+  $("waiting").hidden = cloud.approved;
+  $("approved").hidden = !cloud.approved;
+  $("sync-now").textContent = cloud.approved ? "Sync now" : "Check now";
+  if (!cloud.approved) {
+    $("phone-code").textContent = cloud.displayCode ?? "…";
+    $("waiting-status").textContent = cloud.busy
+      ? "Checking…"
+      : cloud.error
+        ? `Can't reach the database yet: ${cloud.error}`
+        : !navigator.onLine
+          ? "No signal - the code appears once the phone is online."
+          : cloud.displayCode
+            ? "Waiting for approval. Send this code to whoever runs the database. It checks again every minute."
+            : "Registering…";
+  } else {
+    $("sync-who").textContent = `Approved for ${cloud.state.farmName || "the farm"} · phone ${cloud.displayCode}`;
+    $("sync-status").textContent = cloud.busy
+      ? "Syncing…"
+      : `${waiting ? `${waiting} change(s) waiting to upload` : "Everything uploaded"} · last sync ${ago(cloud.state.lastSync)}`
+        + (cloud.error ? ` · last attempt failed: ${cloud.error}` : "");
+  }
+}
+
+function refreshAfterSync() {
+  renderPaddockOptions();
+  if (document.activeElement?.matches("#log-rows input")) return; // don't redraw under the farmer's thumb
+  if (!$("tab-log").hidden) renderLog();
+  if (!$("tab-paddocks").hidden) renderPaddocks();
+  if (!$("tab-photos").hidden) renderPhotos();
+}
+
+$("sync").addEventListener("click", () => {
+  if (!cloud.approved) {
+    showTab("paddocks");
+    $("waiting").scrollIntoView({ block: "center" });
+  } else if (!navigator.onLine) toast("No signal - changes are kept on the phone and upload later.");
+  else if (cloud.error) toast(`Sync problem: ${cloud.error}`, true);
+  else toast(cloud.waiting ? `${cloud.waiting} change(s) waiting to upload` : "Everything uploaded");
+  cloud.sync();
+});
+
+$("sync-now").addEventListener("click", () => cloud.sync());
+
 // ---------- start ----------
 renderPaddockOptions();
 renderLog();
 startGps();
 renderGps();
+cloud.countPhotos().catch(() => {});
+renderSync();
+cloud.sync();
+window.addEventListener("online", () => cloud.sync());
+setInterval(() => {
+  if (document.visibilityState === "visible") cloud.sync();
+}, 60_000);
 
 // Re-render when the app comes back to the front, so the "now" row moves on after midday/midnight.
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && !$("tab-log").hidden && !document.activeElement?.matches("input")) renderLog();
+  if (document.visibilityState !== "visible") return;
+  if (!$("tab-log").hidden && !document.activeElement?.matches("input")) renderLog();
+  cloud.sync();
 });
 
 if ("serviceWorker" in navigator) {

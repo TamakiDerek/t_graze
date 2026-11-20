@@ -18,8 +18,42 @@ removal (only for unused paddocks), and exports CSVs for the laptop side:
 - `t_graze_photos_*.csv`: `file, taken, plus_code, latitude, longitude, accuracy_m, altitude_m`
   (`plus_code` is the full 10-digit code, e.g. `4VJQ676H+WP`; file names use the short form)
 
-Data is stored in the browser's localStorage on the phone. Export regularly: clearing Chrome's site
-data for the app deletes the log.
+## Sync to the farm database (Supabase)
+
+Everything saves on the phone first: the log and paddock list in localStorage, and photos waiting to
+upload in IndexedDB. Changes are queued and pushed to Supabase whenever there's signal: after each
+change, every minute, and when the app comes back to the front. The header chip shows **☁ ✓**
+(all uploaded), **☁ 3** (3 changes waiting) or **☁ off** (phone not approved yet).
+
+There are no passwords. Each phone signs itself in anonymously and registers a short code, shown under
+**Paddocks → Sync** (e.g. `202-82C`). To approve a phone, run this in the Supabase SQL editor:
+
+```sql
+select public.approve_phone('202-82C', 'Trial farm');   -- creates the farm if it's new
+```
+
+The phone picks it up within a minute (or tap **Check now**), then uploads everything it has, including
+entries made before approval. Phones waiting for approval:
+`select code, user_agent, registered_at from public.devices where approved_at is null;`
+
+What's in Supabase (project setup is in `supabase/`: run `schema.sql`, then `phones.sql`, then turn on
+**Authentication → Sign In / Providers → Allow anonymous sign-ins**):
+
+| Table | Holds |
+|-------|-------|
+| `farms`, `farm_members` | Farms and which phones (users) belong to each |
+| `devices` | Registered phones, their codes and when they were approved |
+| `paddocks` | Paddock names per farm |
+| `grazing_log` | One row per farm per half-day: `day`, `half`, `paddock_1`, `paddock_2` |
+| `photos` | Photo metadata: `file`, `taken_at`, `plus_code` (full 10-digit), `latitude`, `longitude`, `accuracy_m`, `altitude_m`, `storage_path` |
+| Storage bucket `photos` | The JPEGs (private), at `<farm_id>/<file>` |
+
+Row-level security keeps each farm's rows to that farm's approved phones. An unapproved phone sees
+nothing, can't approve itself and can't join a farm. Phones can't delete photo files.
+
+If Chrome's site data for the app is cleared, the phone gets a new code and needs approving again.
+Anything not yet uploaded at that point is lost, and so is the local copy of everything else, which
+comes back from the database on the next sync (the last 120 days of the log).
 
 ## Layout
 
@@ -29,7 +63,10 @@ data for the app deletes the log.
 | `app/model.js` | Data store, half-day slots, photo naming, CSV export (no DOM; unit tested) |
 | `app/pluscode.js` | Open Location Code encode/decode |
 | `app/exif.js` | Minimal JPEG EXIF writer (GPS, time, description) |
+| `app/cloud.js` | Phone registration, upload queue and sync with Supabase (plain HTTP, no SDK) |
+| `app/config.js` | Supabase project URL and publishable key (public by design) |
 | `app/sw.js` | Service worker: works offline, refreshes from the network when there's signal |
+| `supabase/` | Database setup SQL |
 | `tools/serve.js` | Local static server for testing |
 | `test/` | `node --test` unit tests |
 
