@@ -100,6 +100,35 @@ main { padding: 8px 12px; max-width: 640px; margin: 0 auto; }
 
 .chips { display: flex; gap: 6px; }
 
+.paddocks { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.paddocks th { padding: 0; vertical-align: bottom; border-bottom: 2px solid var(--line); }
+.paddocks th button {
+  width: 100%; border: 0; background: none; padding: 6px 4px; text-align: inherit;
+  font-size: 0.8rem; font-weight: 600; color: var(--muted); line-height: 1.15;
+}
+.paddocks th[aria-sort="ascending"] button, .paddocks th[aria-sort="descending"] button { color: var(--ink); }
+.paddocks th small { display: block; font-weight: 400; font-size: 0.7rem; }
+.paddocks th .arrow { margin-left: 2px; font-size: 0.65rem; }
+.paddocks .num { text-align: right; }
+.paddocks td { padding: 8px 4px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.paddocks td.name { overflow-wrap: anywhere; }
+.paddocks .edit-col { width: 40px; }
+.paddocks .edit { border: 0; background: none; font-size: 1.05rem; padding: 4px 6px; border-radius: 6px; }
+.paddocks .empty { color: var(--muted); text-align: center; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+.edit-dialog {
+  width: min(92vw, 420px); border: 0; border-radius: 12px; padding: 16px;
+  background: var(--card); color: var(--ink); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+.edit-dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
+.edit-dialog h2 { margin: 0 0 12px; }
+.edit-dialog label { display: grid; gap: 4px; font-size: 0.9rem; color: var(--muted); }
+.edit-dialog input { padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font-size: 1rem; }
+.row .danger { background: #b91c1c; }
+.row .danger:disabled { opacity: 0.4; }
+.row .plain { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
+
 .code-line { font-size: 1.1rem; }
 .code { font-family: ui-monospace, Consolas, monospace; font-size: 1.5rem; letter-spacing: 0.08em; }
 .row { display: flex; gap: 8px; }

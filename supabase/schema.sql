@@ -23,6 +23,8 @@ create table if not exists public.paddocks (
   created_at timestamptz not null default now(),
   primary key (farm_id, name)
 );
+-- Pasture cover (kg DM/ha), set from the laptop side; the phone only reads it.
+alter table public.paddocks add column if not exists cover integer;
 -- "Haybarn" and "haybarn" are the same paddock.
 create unique index if not exists paddocks_name_ci on public.paddocks (farm_id, lower(name));
 

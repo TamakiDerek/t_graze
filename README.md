@@ -11,8 +11,11 @@ Android Chrome and has two jobs:
   (e.g. `2026_1117_8R9C+W2.jpg`). A second photo with the same name gets `_2`, `_3` and so on. The
   GPS position, altitude, accuracy and capture time are written into the photo's EXIF.
 
-The Paddocks tab lists paddocks with when each was last grazed, allows rename (the log follows) and
-removal (only for unused paddocks), and exports CSVs for the laptop side:
+The Paddocks tab is a sortable table (tap a heading; tap again to reverse): **Last grazed** (days ago),
+**Cover** (kg DM/ha, from `paddocks.cover` in the database, set on the laptop side) and **Interval** (days
+between the starts of the last two grazings; back-to-back days count as one grazing). The ✏️ button renames
+a paddock (the log follows) or removes it (only if unused). The tab also
+exports CSVs for the laptop side:
 
 - `t_graze_log_*.csv`: `date, half, paddock_1, paddock_2`
 - `t_graze_photos_*.csv`: `file, taken, plus_code, latitude, longitude, accuracy_m, altitude_m`
