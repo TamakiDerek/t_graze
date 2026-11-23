@@ -9,6 +9,7 @@
   --now: #e6f2dc;
   --warn: #9a3412;
   --ok: #1f6f3a;
+  --photo: #2f6f9a;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -22,6 +23,7 @@
     --now: #23361f;
     --warn: #fb923c;
     --ok: #6ee7a0;
+    --photo: #7cc0f0;
   }
 }
 
@@ -120,6 +122,7 @@ main { padding: 8px 12px; max-width: 640px; margin: 0 auto; }
 .paddocks .edit-col { width: 40px; }
 .paddocks .tag { display: inline-block; min-width: 2.2em; margin-left: 3px; font-size: 0.7rem; text-align: left; color: var(--muted); }
 .paddocks .tag.m { color: var(--ok); font-weight: 600; }
+.paddocks .tag.p { color: var(--photo); font-weight: 600; }
 .paddocks .edit { border: 0; background: none; font-size: 1.05rem; padding: 4px 6px; border-radius: 6px; }
 .paddocks .empty { color: var(--muted); text-align: center; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
@@ -137,6 +140,7 @@ main { padding: 8px 12px; max-width: 640px; margin: 0 auto; }
 .edit-dialog .cmp-now b { display: block; padding: 10px 0; font-size: 1.2rem; font-variant-numeric: tabular-nums; }
 .edit-dialog .cmp-now .tag { margin-left: 3px; font-size: 0.8rem; color: var(--muted); }
 .edit-dialog .cmp-now .tag.m { color: var(--ok); font-weight: 600; }
+.edit-dialog .cmp-now .tag.p { color: var(--photo); font-weight: 600; }
 .edit-dialog .cmp-new input { width: 100%; box-sizing: border-box; }
 .edit-dialog .rare { margin: 12px 0 4px; border-top: 1px solid var(--line); padding-top: 8px; }
 .edit-dialog .rare summary { color: var(--muted); font-size: 0.9rem; cursor: pointer; }
@@ -208,6 +212,7 @@ h2 { font-size: 1rem; margin: 24px 0 4px; }
 .fill { height: 100%; border-radius: 0 2px 2px 0; flex: none; }
 .fill.e { background: color-mix(in srgb, var(--brand) 45%, transparent); }
 .fill.m { background: var(--ok); }
+.fill.p { background: var(--photo); }
 .fill.off { background: color-mix(in srgb, var(--muted) 25%, transparent); }
 .cval { margin-left: 3px; color: var(--muted); font-size: 0.85em; }
 .chart .avail { text-align: right; }
