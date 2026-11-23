@@ -42,11 +42,10 @@ Plan: fetch one farm-location weather series a day, store it in a Supabase table
 day, temp, soil_temp, radiation, rain, et0, smd), and have the phones download it with the rest of the sync.
 The estimate stays offline-capable.
 
-## Verified readings override and calibrate
+## Measured readings override and calibrate
 
-1. **The paddock itself**: a measured cover resets that paddock's estimate. Grow forward from the
-   measurement and its date, not from the grazing date. `estimateCover` needs a start cover and a start date
-   instead of just "days since grazed".
+1. Done (2026-11-23): **the paddock itself**. A measured cover restarts that paddock's figure, which grows
+   forward from the measurement and its date (`growCover` in `app/model.js`). It's shown as `m<days>`.
 2. **The rest of the farm**: compare each new measurement with what the model predicted for that paddock
    that day. The ratio (actual growth ÷ predicted growth since the last anchor) feeds `farm_factor`.
    Use a rolling average of recent ratios, weighted toward the newest. This gives "if one paddock is growing
