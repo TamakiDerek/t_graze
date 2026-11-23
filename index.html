@@ -100,10 +100,12 @@
     </section>
 
     <section id="tab-analysis" class="tab" hidden>
-      <p class="chart-title"><b>Cover</b> kg DM/ha, highest first <span id="chart-total" class="chart-total"></span></p>
-      <div class="chart" id="cover-chart" role="img" aria-label="Cover by paddock"></div>
-      <p class="hint">Bars run from 1000 to 4000 kg DM/ha (lines at 2000 and 3000); solid = measured, pale = estimate.
-        <b>Avail.</b> = kg DM above the 1500 residual: (cover − 1500) × ha. A dash means the paddock's area isn't known.</p>
+      <p class="chart-title"><b>Cover today</b> kg DM/ha, highest first <span id="chart-total" class="chart-total"></span></p>
+      <div class="chart" id="cover-chart"></div>
+      <p class="hint">Tap a paddock name to take it <b>out</b> of the grazing rotation (e.g. for hay) or put it back in.
+        Out paddocks are greyed and left out of the total and the feed ahead. Bars run from 1000 to 4000 kg DM/ha
+        (lines at 2000 and 3000); solid = measured, pale = estimate. <b>Avail.</b> = kg DM above the 1500 residual:
+        (cover − 1500) × ha. A dash means the paddock's area isn't known.</p>
 
       <h2>Feed ahead: 3 weeks</h2>
       <form id="feed-form" class="feed-inputs">
@@ -111,15 +113,11 @@
         <label>kg DM/cow/day <input id="feed-per" type="number" inputmode="decimal" min="0" step="0.5"></label>
         <p id="feed-demand" class="feed-demand"></p>
       </form>
-      <svg id="feed-chart" class="feed-chart" viewBox="0 0 340 180" role="img" aria-label="Average farm cover over the next 3 weeks"></svg>
+      <div class="chart feed" id="feed-chart"></div>
       <p id="feed-note" class="hint"></p>
-      <table class="feed-days">
-        <thead><tr><th>Day</th><th class="num">Cover</th><th class="num">Avail. kg</th><th>Grazed</th></tr></thead>
-        <tbody id="feed-rows"></tbody>
-      </table>
-      <p class="hint">Each day every paddock grows on the cover curve, then the herd eats cows × kg, taking the highest
-        paddock down to 1500 before moving on (… = part eaten, finished the next day). Cover = average over the
-        paddocks with a known cover and area.</p>
+      <p class="hint">Bars = average farm cover each day (1000 to 4000 kg DM/ha). Each day every paddock grows on the
+        cover curve, then the herd eats cows × kg, taking the highest paddock down to 1500 before moving on
+        (… = part eaten, finished the next day). Only paddocks in the rotation with a known cover and area count.</p>
     </section>
   </main>
 

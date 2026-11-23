@@ -44,7 +44,7 @@ export function photoName(now, shortPlusCode, usedNames) {
   return name;
 }
 
-// info: per-paddock details, { name: { area: hectares } }
+// info: per-paddock details, { name: { area: hectares, out: true when out of the grazing rotation } }
 const EMPTY = () => ({ version: 1, paddocks: [], log: {}, photos: [], covers: {}, info: {} });
 
 const DAY_MS = 86_400_000;
@@ -200,7 +200,7 @@ export function coverRanking(store, now) {
     .map((r) => {
       const area = store.area(r.name);
       const available = area == null ? null : Math.max(0, Math.round((r.cover - GRAZE_TO) * area));
-      return { name: r.name, cover: r.cover, coverKind: r.coverKind, coverAge: r.coverAge, area, available };
+      return { name: r.name, cover: r.cover, coverKind: r.coverKind, coverAge: r.coverAge, area, available, out: store.isOut(r.name) };
     })
     .sort((a, b) => b.cover - a.cover || a.name.localeCompare(b.name, undefined, { numeric: true }));
 }
@@ -209,16 +209,21 @@ export function coverRanking(store, now) {
  * Feed budget ahead: day by day, every paddock grows on the curve, then the herd eats cows x perCow kg DM,
  * taking the highest-cover paddock down to GRAZE_TO before moving to the next (a part-eaten paddock is
  * finished first the next day). A paddock eaten out sits at GRAZE_TO the next day and grows from the day
- * after, as in the cover estimate. Paddocks already grazed today count as eaten. Only paddocks with both a
- * cover and an area take part.
- * Returns { demand, area, excluded: [names], days: [{ date, afc, available, grazed: [{ name, finished }], shortfall }] }
+ * after, as in the cover estimate. Paddocks already grazed today count as eaten. Only paddocks in the
+ * rotation with both a cover and an area take part.
+ * Returns { demand, area, excluded: [names], out: [names], days: [{ date, afc, available, grazed: [{ name, finished }], shortfall }] }
  * with days[0] = today (before any forecast eating). afc = average farm cover, kg DM/ha.
  */
 export function forecastFeed(store, now, { cows, perCow, days = 21, curve = GROWTH_CURVE } = {}) {
   const demand = Math.max(0, (Number(cows) || 0) * (Number(perCow) || 0));
   const pads = [];
   const excluded = [];
+  const out = [];
   for (const r of paddockStats(store, now)) {
+    if (store.isOut(r.name)) {
+      out.push(r.name);
+      continue;
+    }
     const area = store.area(r.name);
     if (r.cover == null || area == null) {
       excluded.push(r.name);
@@ -236,7 +241,7 @@ export function forecastFeed(store, now, { cows, perCow, days = 21, curve = GROW
     grazed,
     shortfall: Math.round(shortfall),
   });
-  const out = [snapshot(0, [], 0)];
+  const result = [snapshot(0, [], 0)];
   let open = null; // paddock the herd is part way through
   for (let d = 1; d <= days; d++) {
     for (const p of pads) if (p !== open && d >= p.grazedOn + 2) p.cover += growthRate(p.cover, curve);
@@ -260,9 +265,9 @@ export function forecastFeed(store, now, { cows, perCow, days = 21, curve = GROW
         grazed.push({ name: open.name, finished: false });
       }
     }
-    out.push(snapshot(d, grazed, need > 0.5 ? need : 0));
+    result.push(snapshot(d, grazed, need > 0.5 ? need : 0));
   }
-  return { demand, area: Math.round(area * 100) / 100, excluded, days: out };
+  return { demand, area: Math.round(area * 100) / 100, excluded, out, days: result };
 }
 
 /** Default direction when a column is first tapped: longest since grazed first, cover largest first, interval shortest first. */
@@ -354,6 +359,17 @@ export class Store {
   /** Paddock size in hectares, or null if not known. */
   area(name) {
     return this.data.info?.[name]?.area ?? null;
+  }
+
+  /** True when the paddock is out of the grazing rotation (kept for hay etc.). */
+  isOut(name) {
+    return Boolean(this.data.info?.[name]?.out);
+  }
+
+  setOut(name, out) {
+    this.data.info ??= {};
+    this.data.info[name] = { ...this.data.info[name], out: Boolean(out) };
+    this.save();
   }
 
   /** Sets (or clears, with "" / null) a paddock's size in hectares. Returns the stored value. */

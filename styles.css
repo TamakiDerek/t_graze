@@ -166,27 +166,30 @@ h2 { font-size: 1rem; margin: 24px 0 4px; }
 }
 .toast.error { background: #b91c1c; }
 
-/* Analysis: cover chart squeezed so about 50 paddocks fit on one screen */
+/* Analysis: cover today and feed ahead, one row per paddock / day, rows tall enough to tap */
 .chart-title { margin: 0 0 4px; font-size: 0.85rem; color: var(--muted); }
 .chart-title b { color: var(--ink); }
-.chart {
-  --row-h: max(10px, calc((100dvh - var(--head-h, 90px) - 120px) / 51));
-  font-size: min(12px, calc(var(--row-h) * 0.85)); font-variant-numeric: tabular-nums;
-}
+.chart { --row-h: 24px; font-size: 13px; font-variant-numeric: tabular-nums; }
 .chart-row {
-  display: grid; grid-template-columns: 5.2em 1fr 4.6em; align-items: center; gap: 4px;
-  height: var(--row-h); line-height: var(--row-h);
+  display: grid; grid-template-columns: 5.6em 1fr 4.4em; align-items: center; gap: 4px;
+  height: var(--row-h); line-height: var(--row-h); border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent);
 }
-.chart-head { color: var(--muted); }
+.chart-head { color: var(--muted); font-size: 11px; border-bottom: 0; }
 .chart-head .ticks { position: relative; height: 100%; }
 .chart-head .ticks i { position: absolute; font-style: normal; transform: translateX(-50%); }
 .chart-head .ticks i:nth-child(1) { left: 0; transform: none; }
 .chart-head .ticks i:nth-child(2) { left: 33.33%; }
 .chart-head .ticks i:nth-child(3) { left: 66.67%; }
 .chart-head .ticks i:nth-child(4) { right: 0; transform: none; }
-.pname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pname {
+  height: calc(var(--row-h) - 2px); padding: 0 4px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--card); color: var(--ink); font: inherit; font-weight: 600; text-align: left;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.chart-row.out .pname { background: none; color: var(--muted); font-weight: 400; text-decoration: line-through; border-style: dashed; }
+.chart-row.out .avail { color: var(--muted); font-style: italic; }
 .track {
-  position: relative; height: 82%; display: flex; align-items: center;
+  position: relative; height: 70%; display: flex; align-items: center;
   background:
     linear-gradient(to right, transparent calc(33.33% - 0.5px), var(--line) calc(33.33% - 0.5px), var(--line) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px)),
     linear-gradient(to right, transparent calc(66.67% - 0.5px), var(--line) calc(66.67% - 0.5px), var(--line) calc(66.67% + 0.5px), transparent calc(66.67% + 0.5px));
@@ -194,25 +197,18 @@ h2 { font-size: 1rem; margin: 24px 0 4px; }
 .fill { height: 100%; border-radius: 0 2px 2px 0; flex: none; }
 .fill.e { background: color-mix(in srgb, var(--brand) 45%, transparent); }
 .fill.m { background: var(--ok); }
-.cval { margin-left: 3px; color: var(--muted); font-size: 0.9em; }
+.fill.off { background: color-mix(in srgb, var(--muted) 25%, transparent); }
+.cval { margin-left: 3px; color: var(--muted); font-size: 0.85em; }
 .chart .avail { text-align: right; }
 .chart-total { white-space: nowrap; }
 
-/* Analysis: feed ahead */
+/* Feed ahead */
 .feed-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: end; }
 .feed-inputs label { display: grid; gap: 2px; font-size: 0.85rem; color: var(--muted); }
 .feed-inputs input { padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink); font-size: 1rem; width: 100%; box-sizing: border-box; }
 .feed-demand { grid-column: 1 / -1; margin: 0; font-weight: 600; }
-.feed-chart { width: 100%; height: auto; display: block; margin-top: 8px; font-size: 9px; }
-.feed-chart .grid { stroke: var(--line); stroke-width: 0.5; }
-.feed-chart .ylab { fill: var(--muted); text-anchor: end; }
-.feed-chart .xlab { fill: var(--muted); }
-.feed-chart .afc { fill: none; stroke: var(--brand); stroke-width: 1.6; }
-.feed-chart .dot { fill: var(--brand); }
-.feed-chart .dot.short { fill: var(--warn); }
-.feed-days { width: 100%; border-collapse: collapse; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
-.feed-days th { text-align: left; color: var(--muted); font-weight: 500; padding: 2px 4px; }
-.feed-days td { padding: 2px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
-.feed-days td:first-child { white-space: nowrap; }
-.feed-days .num { text-align: right; }
-.feed-days tr.short td { color: var(--warn); }
+.chart.feed { --row-h: 22px; margin-top: 8px; }
+.chart.feed .chart-row { grid-template-columns: 3.9em 1fr 4.4em 6.5em; }
+.chart.feed .day { white-space: nowrap; }
+.chart.feed .grazed { font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chart.feed .chart-row.short { color: var(--warn); }
