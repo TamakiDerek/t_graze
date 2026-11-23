@@ -186,6 +186,24 @@ export function measureCover(store, name, value, now) {
   };
 }
 
+// Paddocks are grazed down to this; above it is feed the cows can eat.
+export const GRAZE_TO = COVER_AFTER_GRAZING;
+
+/**
+ * Paddocks with a known cover, highest cover first, with the feed available in each:
+ * available = (cover - GRAZE_TO) x hectares in kg DM, never below 0; null when the area isn't known.
+ */
+export function coverRanking(store, now) {
+  return paddockStats(store, now)
+    .filter((r) => r.cover != null)
+    .map((r) => {
+      const area = store.area(r.name);
+      const available = area == null ? null : Math.max(0, Math.round((r.cover - GRAZE_TO) * area));
+      return { name: r.name, cover: r.cover, coverKind: r.coverKind, coverAge: r.coverAge, area, available };
+    })
+    .sort((a, b) => b.cover - a.cover || a.name.localeCompare(b.name, undefined, { numeric: true }));
+}
+
 /** Default direction when a column is first tapped: longest since grazed first, cover largest first, interval shortest first. */
 export const SORT_DEFAULTS = { name: "asc", lastDays: "desc", cover: "desc", interval: "asc" };
 

@@ -17,7 +17,11 @@ after the last grazing, the measured value from `paddocks.cover`/`cover_date` gr
 `m12` = measured 12 days ago. On the day a paddock is grazed it still shows the cover going in, dropping to
 the residual the next day) and **Interval** (days
 between the starts of the last two grazings; entries up to 3 days apart count as one grazing). The ✏️ button shows and sets the paddock's area (ha), enters a measured cover
-(saved with the estimate it replaces), renames a paddock (the log follows) or removes it (only if unused). The tab also
+(saved with the estimate it replaces), renames a paddock (the log follows) or removes it (only if unused). The **Analysis** tab charts every paddock with a known cover, highest first, squeezed so about 50 fit
+on one screen: a bar from 1000 to 4000 kg DM/ha (solid = measured, pale = estimate) and the feed available,
+`(cover - 1500) × ha` kg DM (never below 0), with the farm total.
+
+The Paddocks tab also
 exports CSVs for the laptop side:
 
 - `t_graze_log_*.csv`: `date, half, paddock_1, paddock_2`

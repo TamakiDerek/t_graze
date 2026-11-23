@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store, slots, photoName, logCsv, paddockStats, sortPaddockStats, growthRate, estimateCover, measureCover, COVER_MODEL, growCover } from "../app/model.js";
+import { Store, slots, photoName, logCsv, paddockStats, sortPaddockStats, growthRate, estimateCover, measureCover, COVER_MODEL, growCover, coverRanking } from "../app/model.js";
 
 const memory = () => {
   const m = new Map();
@@ -197,4 +197,22 @@ test("paddock area: set, clear, follows renames, goes with removal", () => {
   s.setArea("A1 North", 2);
   s.removePaddock("A1 North");
   assert.equal(s.data.info["A1 North"], undefined);
+});
+
+test("cover ranking: highest first, available = (cover - 1500) x ha, never below 0", () => {
+  const s = new Store(memory());
+  for (const p of ["Hi", "Lo", "NoArea", "Never"]) s.addPaddock(p);
+  s.setSlot("2026-11-01 am", 0, "Hi"); // 20 days -> estimateCover(20)
+  s.setSlot("2026-11-20 am", 0, "Lo"); // 1 day -> 1500 residual
+  s.setSlot("2026-11-11 am", 0, "NoArea");
+  s.setArea("Hi", 2);
+  s.setArea("Lo", 3.5);
+  const rows = coverRanking(s, new Date(2026, 10, 21, 9, 0));
+  assert.deepEqual(rows.map((r) => r.name), ["Hi", "NoArea", "Lo"]); // "Never" has no cover
+  assert.equal(rows[0].available, Math.round((estimateCover(20) - 1500) * 2));
+  assert.equal(rows[1].available, null);
+  assert.equal(rows[2].available, 0);
+  s.data.covers = { Lo: { value: 1200, date: "2026-11-21" } }; // measured below the residual: still 0, not negative
+  s.data.log = {};
+  assert.equal(coverRanking(s, new Date(2026, 10, 21, 9, 0)).find((r) => r.name === "Lo").available, 0);
 });

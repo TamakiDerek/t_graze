@@ -51,7 +51,7 @@ button, input { font: inherit; color: inherit; }
 
 .tabs {
   position: sticky; top: var(--bar-h, 46px); z-index: 2;
-  display: grid; grid-template-columns: repeat(3, 1fr);
+  display: grid; grid-template-columns: repeat(4, 1fr);
   background: var(--card); border-bottom: 1px solid var(--line);
 }
 .tabs button {
@@ -165,3 +165,35 @@ h2 { font-size: 1rem; margin: 24px 0 4px; }
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3); font-size: 0.9rem;
 }
 .toast.error { background: #b91c1c; }
+
+/* Analysis: cover chart squeezed so about 50 paddocks fit on one screen */
+.chart-title { margin: 0 0 4px; font-size: 0.85rem; color: var(--muted); }
+.chart-title b { color: var(--ink); }
+.chart {
+  --row-h: max(10px, calc((100dvh - var(--head-h, 90px) - 120px) / 51));
+  font-size: min(12px, calc(var(--row-h) * 0.85)); font-variant-numeric: tabular-nums;
+}
+.chart-row {
+  display: grid; grid-template-columns: 5.2em 1fr 4.6em; align-items: center; gap: 4px;
+  height: var(--row-h); line-height: var(--row-h);
+}
+.chart-head { color: var(--muted); }
+.chart-head .ticks { position: relative; height: 100%; }
+.chart-head .ticks i { position: absolute; font-style: normal; transform: translateX(-50%); }
+.chart-head .ticks i:nth-child(1) { left: 0; transform: none; }
+.chart-head .ticks i:nth-child(2) { left: 33.33%; }
+.chart-head .ticks i:nth-child(3) { left: 66.67%; }
+.chart-head .ticks i:nth-child(4) { right: 0; transform: none; }
+.pname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.track {
+  position: relative; height: 82%; display: flex; align-items: center;
+  background:
+    linear-gradient(to right, transparent calc(33.33% - 0.5px), var(--line) calc(33.33% - 0.5px), var(--line) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px)),
+    linear-gradient(to right, transparent calc(66.67% - 0.5px), var(--line) calc(66.67% - 0.5px), var(--line) calc(66.67% + 0.5px), transparent calc(66.67% + 0.5px));
+}
+.fill { height: 100%; border-radius: 0 2px 2px 0; flex: none; }
+.fill.e { background: color-mix(in srgb, var(--brand) 45%, transparent); }
+.fill.m { background: var(--ok); }
+.cval { margin-left: 3px; color: var(--muted); font-size: 0.9em; }
+.chart .avail { text-align: right; }
+.chart-total { white-space: nowrap; }

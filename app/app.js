@@ -1,4 +1,4 @@
-import { Store, slots, currentHalf, isoDate, photoName, logCsv, photosCsv, paddockStats, sortPaddockStats, SORT_DEFAULTS, measureCover } from "./model.js";
+import { Store, slots, currentHalf, isoDate, photoName, logCsv, photosCsv, paddockStats, sortPaddockStats, SORT_DEFAULTS, measureCover, coverRanking } from "./model.js";
 import { encode, shortCode } from "./pluscode.js";
 import { insertExif } from "./exif.js";
 import { Cloud, pendingPhotoFiles } from "./cloud.js";
@@ -41,6 +41,52 @@ function showTab(name) {
   if (name === "log") renderLog();
   if (name === "photos") renderPhotos();
   if (name === "paddocks") renderPaddocks();
+  if (name === "analysis") renderAnalysis();
+}
+
+// ---------- analysis ----------
+const CHART_MIN = 1000;
+const CHART_MAX = 4000;
+const kg = (n) => n.toLocaleString("en-NZ");
+function renderAnalysis() {
+  const rows = coverRanking(store, new Date());
+  const chart = $("cover-chart");
+  chart.replaceChildren();
+  const head = document.createElement("div");
+  head.className = "chart-row chart-head";
+  head.innerHTML = '<span>Paddock</span><span class="ticks"><i>1000</i><i>2000</i><i>3000</i><i>4000</i></span><span class="avail">Avail. kg</span>';
+  chart.append(head);
+  for (const r of rows) {
+    const row = document.createElement("div");
+    row.className = "chart-row";
+    const pct = Math.max(0, Math.min(1, (r.cover - CHART_MIN) / (CHART_MAX - CHART_MIN))) * 100;
+    row.title = `${r.name}: ${r.cover} kg DM/ha ${r.coverKind === "m" ? `(measured ${r.coverAge} days ago)` : "(estimate)"}` +
+      (r.area != null ? `, ${r.area} ha` : "");
+    const name = document.createElement("span");
+    name.className = "pname";
+    name.textContent = r.name;
+    const track = document.createElement("span");
+    track.className = "track";
+    const bar = document.createElement("span");
+    bar.className = `fill ${r.coverKind}`;
+    bar.style.width = `${pct}%`;
+    const val = document.createElement("span");
+    val.className = "cval";
+    val.textContent = r.cover;
+    track.append(bar, val);
+    const avail = document.createElement("span");
+    avail.className = "avail";
+    avail.textContent = r.available == null ? "–" : kg(r.available);
+    row.append(name, track, avail);
+    chart.append(row);
+  }
+  if (!rows.length) {
+    chart.append(Object.assign(document.createElement("p"), {
+      className: "hint", textContent: "No paddock has a cover yet: enter grazings or measured covers first.",
+    }));
+  }
+  const known = rows.filter((r) => r.available != null);
+  $("chart-total").textContent = known.length ? `· total available ${kg(known.reduce((s, r) => s + r.available, 0))} kg DM` : "";
 }
 
 // ---------- grazing log ----------
@@ -451,6 +497,7 @@ function refreshAfterSync() {
   if (document.activeElement?.matches("#log-rows input")) return; // don't redraw under the farmer's thumb
   if (!$("tab-log").hidden) renderLog();
   if (!$("tab-paddocks").hidden) renderPaddocks();
+  if (!$("tab-analysis").hidden) renderAnalysis();
   if (!$("tab-photos").hidden) renderPhotos();
 }
 
