@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store, slots, photoName, logCsv, paddockStats, sortPaddockStats, growthRate, estimateCover } from "../app/model.js";
+import { Store, slots, photoName, logCsv, paddockStats, sortPaddockStats, growthRate, estimateCover, measureCover, COVER_MODEL } from "../app/model.js";
 
 const memory = () => {
   const m = new Map();
@@ -137,4 +137,18 @@ test("growth curve: 100/day at 2000-2200, 5 less per 100 kg either side, minimum
   assert.equal(estimateCover(2), 1575); // 1500 + 75
   // any [cover, growth] table can replace the curve
   assert.equal(growthRate(250, [[0, 10], [500, 20]]), 15);
+});
+
+test("measured cover: shows as verified and keeps the estimate it replaced", () => {
+  const s = new Store(memory());
+  for (const p of ["G", "Fresh"]) s.addPaddock(p);
+  s.setSlot("2026-11-11 am", 0, "G"); // 10 days before now
+  const now = new Date(2026, 10, 21, 9, 0);
+  const r = measureCover(s, "G", "2450", now);
+  assert.deepEqual(r, { paddock: "G", day: "2026-11-21", cover: 2450, predicted: estimateCover(10), days_since_grazed: 10, model: COVER_MODEL });
+  const later = new Date(2026, 10, 24, 9, 0);
+  const g = paddockStats(s, later).find((x) => x.name === "G");
+  assert.deepEqual([g.cover, g.coverKind, g.coverAge], [2450, "v", 3]);
+  assert.equal(measureCover(s, "Fresh", 1800, now).predicted, null); // never grazed: nothing predicted
+  assert.throws(() => measureCover(s, "G", "lots", now));
 });

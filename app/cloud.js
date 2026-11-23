@@ -52,6 +52,7 @@ export class Cloud {
     }
     this.state.dirtyLog ??= [];
     this.state.paddockOps ??= [];
+    this.state.coverReadings ??= [];
   }
 
   get configured() {
@@ -61,7 +62,7 @@ export class Cloud {
     return Boolean(this.state.session && this.state.farmId);
   }
   get waiting() {
-    return this.state.dirtyLog.length + this.state.paddockOps.length + this.pendingPhotoCount;
+    return this.state.dirtyLog.length + this.state.paddockOps.length + this.state.coverReadings.length + this.pendingPhotoCount;
   }
 
   saveState() {
@@ -82,11 +83,19 @@ export class Cloud {
   }
   paddockRenamed(from, to) {
     this.state.paddockOps.push({ op: "rename", from, to });
+    for (const r of this.state.coverReadings) if (r.paddock === from) r.paddock = to;
     this.saveState();
     this.soon();
   }
   paddockRemoved(name) {
     this.state.paddockOps.push({ op: "remove", name });
+    this.saveState();
+    this.soon();
+  }
+  /** A measured cover (from measureCover). Re-measuring the same paddock the same day replaces it. */
+  coverMeasured(reading) {
+    this.state.coverReadings = this.state.coverReadings.filter((r) => !(r.paddock === reading.paddock && r.day === reading.day));
+    this.state.coverReadings.push(reading);
     this.saveState();
     this.soon();
   }
@@ -246,6 +255,7 @@ export class Cloud {
       }
       await this.pushPaddocks();
       await this.pushLog();
+      await this.pushCovers();
       await this.pushPhotos();
       await this.pull();
       this.state.lastSync = new Date().toISOString();
@@ -313,6 +323,19 @@ export class Cloud {
     this.saveState();
   }
 
+  async pushCovers() {
+    const farm = this.state.farmId;
+    const sent = [...this.state.coverReadings];
+    if (!sent.length) return;
+    await this.request("/rest/v1/cover_readings?on_conflict=farm_id,paddock,day", {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: sent.map((r) => ({ farm_id: farm, ...r, entered_at: new Date().toISOString() })),
+    });
+    this.state.coverReadings = this.state.coverReadings.filter((r) => !sent.includes(r));
+    this.saveState();
+  }
+
   async pushPhotos() {
     const farm = this.state.farmId;
     for (const { file, meta, blob } of await pendingPhotos()) {
@@ -352,6 +375,11 @@ export class Cloud {
     for (const { name, cover, cover_date } of paddocks) {
       if (!this.store.findPaddock(name) && !pendingNames.has(name)) data.paddocks.push(name);
       if (cover != null && cover_date) data.covers[this.store.findPaddock(name) ?? name] = { value: cover, date: cover_date };
+    }
+    // Readings still waiting to upload stay showing.
+    for (const r of this.state.coverReadings) {
+      const name = this.store.findPaddock(r.paddock) ?? r.paddock;
+      if (!data.covers[name] || data.covers[name].date <= r.day) data.covers[name] = { value: r.cover, date: r.day };
     }
     const dirty = new Set(this.state.dirtyLog);
     const remote = new Set();
