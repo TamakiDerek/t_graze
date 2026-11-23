@@ -230,6 +230,32 @@ export function coverRanking(store, now) {
  * Returns { demand, area, excluded: [names], out: [names], days: [{ date, afc, available, grazed: [{ name, finished }], shortfall }] }
  * with days[0] = today (before any forecast eating). afc = average farm cover, kg DM/ha.
  */
+/**
+ * How sure the feed ahead is: today is known; each day further out the average cover could be this
+ * much higher or lower (kg DM/ha per day ahead), because growth varies and the grazing plan may not be
+ * followed. A rough allowance, not a statistic: about ±400 after three weeks.
+ */
+export const FORECAST_SPREAD_PER_DAY = 20;
+
+/** The forecast's average cover with its fan: [{ d, date, afc, lo, hi }] for days that have a cover. */
+export function forecastBand(days, spreadPerDay = FORECAST_SPREAD_PER_DAY) {
+  return days
+    .map((x, d) => ({ d, date: x.date, afc: x.afc, lo: x.afc - spreadPerDay * d, hi: x.afc + spreadPerDay * d }))
+    .filter((x) => x.afc != null);
+}
+
+/**
+ * Y range for the average-cover chart: today's average ±half (rounded out to 100s), widened only if
+ * the forecast line itself goes outside it. The fan is cut off at the edges.
+ */
+export function forecastRange(band, half = 500) {
+  if (!band.length) return null;
+  const mid = Math.round(band[0].afc / 100) * 100;
+  const lo = Math.min(mid - half, Math.floor(Math.min(...band.map((x) => x.afc)) / 100) * 100);
+  const hi = Math.max(mid + half, Math.ceil(Math.max(...band.map((x) => x.afc)) / 100) * 100);
+  return { lo, hi };
+}
+
 export function forecastFeed(store, now, { cows, perCow, days = 21, curve = GROWTH_CURVE } = {}) {
   const demand = Math.max(0, (Number(cows) || 0) * (Number(perCow) || 0));
   const pads = [];
