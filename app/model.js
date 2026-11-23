@@ -318,6 +318,16 @@ export class Store {
     this.storage.setItem(this.key, JSON.stringify(this.data));
   }
 
+  /** Another copy of the app on this device saved: take its data (raw JSON from the storage event). */
+  reload(json) {
+    try {
+      this.data = { ...EMPTY(), ...JSON.parse(json || "{}") };
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   get paddocks() {
     return [...this.data.paddocks].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
   }

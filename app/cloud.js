@@ -64,6 +64,31 @@ export class Cloud {
     this.state.paddockOps ??= [];
     this.state.coverReadings ??= [];
     this.state.photoDeletes ??= [];
+    // Another copy of the app on this device (another tab, or the phone view inside the laptop page)
+    // may refresh the shared sign-in. Pick its new one up straight away instead of reusing the old
+    // refresh token, which Supabase would treat as stolen and sign both copies out.
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", (e) => {
+        if (e.key === STATE_KEY) this.adoptStoredSession();
+      });
+    }
+  }
+
+  /** Take the sign-in another copy of the app saved, if it's newer than ours. */
+  adoptStoredSession() {
+    let stored;
+    try {
+      stored = JSON.parse(localStorage.getItem(STATE_KEY) || "{}");
+    } catch {
+      return false;
+    }
+    const mine = this.state.session;
+    const theirs = stored.session;
+    if (!theirs || (mine && theirs.user_id !== mine.user_id)) return false;
+    if (mine && theirs.expires_at <= mine.expires_at) return false;
+    this.state.session = theirs;
+    for (const k of ["code", "farmId", "farmName"]) this.state[k] ??= stored[k];
+    return true;
   }
 
   get configured() {
@@ -179,6 +204,7 @@ export class Cloud {
   }
 
   async freshToken() {
+    this.adoptStoredSession();
     const s = this.state.session;
     if (!s) throw new HttpError(401, { message: "not signed in" });
     if (Date.now() < s.expires_at - 60_000) return;
@@ -187,6 +213,8 @@ export class Cloud {
         method: "POST", auth: false, body: { refresh_token: s.refresh_token },
       }));
     } catch (err) {
+      // Another copy of the app may have refreshed it a moment ago: use that one.
+      if (this.adoptStoredSession() && Date.now() < this.state.session.expires_at - 60_000) return;
       if (err.status >= 400 && err.status < 500) {
         // Session revoked or expired: the phone registers again with a new code and needs
         // approving again. Queued data is kept and uploads after that.

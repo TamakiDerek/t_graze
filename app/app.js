@@ -843,6 +843,17 @@ document.addEventListener("visibilitychange", () => {
   cloud.sync();
 });
 
+// Another copy of the app on this device (another tab, or the laptop page around the phone view)
+// saved its data: take it, so neither copy writes back an old version.
+window.addEventListener("storage", (e) => {
+  if (e.key !== store.key || !e.newValue || !store.reload(e.newValue)) return;
+  if (document.activeElement?.matches?.("input, select, textarea")) return; // redraw after typing
+  renderPaddockOptions();
+  if (!$("tab-log").hidden) renderLog();
+  if (!$("tab-paddocks").hidden) renderPaddocks();
+  if (!$("tab-analysis").hidden) renderAnalysis();
+});
+
 if ("serviceWorker" in navigator) {
   // An app left open in the background keeps running the old version. Each time it comes back on
   // screen, check for a new one; when the new version takes over, reload so the screen uses it.

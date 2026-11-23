@@ -13,7 +13,10 @@
 <body class="laptop">
   <header class="bar">
     <h1>t_graze <small id="app-version" class="ver"></small> <span class="where">laptop</span></h1>
-    <div class="chips"><span id="status" class="gps">Starting…</span></div>
+    <div class="chips">
+      <button id="phone-toggle" class="gps" type="button" aria-pressed="false">📱 Show phone</button>
+      <span id="status" class="gps">Starting…</span>
+    </div>
   </header>
 
   <section id="approve" class="approve" hidden>
@@ -54,6 +57,12 @@
         </form>
       </div>
     </aside>
+    <section class="phone" aria-label="Phone view">
+      <div class="phone-body">
+        <iframe id="phone-frame" title="t_graze phone app" allow="geolocation; camera"></iframe>
+      </div>
+      <button id="phone-reload" class="plain" type="button">↻ Reload phone</button>
+    </section>
   </main>
   <div id="toast" class="toast" role="status" hidden></div>
 

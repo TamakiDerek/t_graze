@@ -16,6 +16,22 @@ const squares = new Map(); // file -> Leaflet rectangle
 
 $("app-version").textContent = self.T_GRAZE_VERSION ?? "";
 
+// The phone app beside the map (for showing it on a call): the same app, same farm, same sign-in.
+const PHONE_KEY = "t_graze_laptop_phone";
+function showPhone(on) {
+  document.body.classList.toggle("with-phone", on);
+  $("phone-toggle").setAttribute("aria-pressed", String(on));
+  $("phone-toggle").textContent = on ? "📱 Hide phone" : "📱 Show phone";
+  if (on && !$("phone-frame").src) $("phone-frame").src = "index.html";
+  try { localStorage.setItem(PHONE_KEY, on ? "1" : "0"); } catch {}
+  setTimeout(() => map?.invalidateSize(), 50);
+}
+$("phone-toggle").addEventListener("click", () => showPhone(!document.body.classList.contains("with-phone")));
+$("phone-reload").addEventListener("click", () => $("phone-frame").contentWindow?.location.reload());
+window.addEventListener("storage", (e) => {
+  if (e.key === store.key && e.newValue) store.reload(e.newValue);
+});
+
 function toast(message, isError = false) {
   const el = $("toast");
   el.textContent = message;
@@ -43,6 +59,9 @@ async function start() {
   }
   $("approve").hidden = true;
   $("main").hidden = false;
+  let phoneOn = false;
+  try { phoneOn = localStorage.getItem(PHONE_KEY) === "1"; } catch {}
+  showPhone(phoneOn);
   await loadPhotos();
 }
 
