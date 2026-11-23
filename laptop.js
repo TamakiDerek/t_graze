@@ -149,9 +149,12 @@ async function choose(file) {
   const img = $("pick-img");
   img.removeAttribute("src");
   try {
-    const { signedURL } = await cloud.request(`/storage/v1/object/sign/${encodeURI(`photos/${chosen.storage_path}`).replace(/\+/g, "%2B")}`, {
-      method: "POST", body: { expiresIn: 3600 },
+    // Ask for the link with the file name in the body, not the address: names contain "+" (from the
+    // plus code), which got signed as "%2B" and then failed the check ("InvalidSignature").
+    const [{ signedURL, error } = {}] = await cloud.request("/storage/v1/object/sign/photos", {
+      method: "POST", body: { expiresIn: 3600, paths: [chosen.storage_path] },
     });
+    if (!signedURL) throw new Error(error || "no link returned");
     if (chosen?.file !== file) return;
     img.src = `${SUPABASE_URL}/storage/v1${signedURL}`;
     $("pick-link").href = img.src;
