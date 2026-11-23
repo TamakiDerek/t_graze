@@ -5,6 +5,7 @@ import { Store, measureCover, isoDate, photoDayCover } from "./model.js";
 import { Cloud } from "./cloud.js";
 import { decode } from "./pluscode.js";
 import { SUPABASE_URL } from "./config.js";
+import { uploadCopy, tiltFromJpeg, UPLOAD_BIG_BYTES } from "./photo-size.js";
 
 const $ = (id) => document.getElementById(id);
 const store = new Store(localStorage);
@@ -67,13 +68,68 @@ async function start() {
 
 async function fetchPhotos() {
   photos = await cloud.request(
-    `/rest/v1/photos?select=file,taken_at,plus_code,latitude,longitude,accuracy_m,storage_path,paddock,cover_estimate,estimate_by,cover_accepted,accepted_at&farm_id=eq.${cloud.state.farmId}&order=taken_at.desc`);
+    `/rest/v1/photos?select=file,taken_at,plus_code,latitude,longitude,accuracy_m,altitude_m,storage_path,paddock,cover_estimate,estimate_by,cover_accepted,accepted_at&farm_id=eq.${cloud.state.farmId}&order=taken_at.desc`);
 }
 async function loadPhotos() {
   await fetchPhotos();
   drawMap();
   drawList();
+  checkSizes().catch((err) => console.warn("photo sizes:", err));
 }
+
+// Photos uploaded before v37 went up full size (6-7 MB). Offer to replace them with ~0.5 MB copies.
+let bigPhotos = [];
+async function checkSizes() {
+  const farm = cloud.state.farmId;
+  const items = await cloud.request("/storage/v1/object/list/photos", {
+    method: "POST", body: { prefix: farm, limit: 1000, offset: 0 },
+  });
+  bigPhotos = items.filter((o) => (o.metadata?.size ?? 0) > UPLOAD_BIG_BYTES)
+    .map((o) => ({ name: o.name, size: o.metadata.size, row: photos.find((p) => p.storage_path === `${farm}/${o.name}`) }))
+    .filter((b) => b.row);
+  const mb = bigPhotos.reduce((s, b) => s + b.size, 0) / 1e6;
+  $("shrink").hidden = !bigPhotos.length;
+  $("shrink-text").textContent = `${bigPhotos.length} photo(s) were uploaded full size (${mb.toFixed(0)} MB of the free 1 GB). `;
+}
+$("shrink-go").addEventListener("click", async () => {
+  const btn = $("shrink-go");
+  btn.disabled = true;
+  const before = bigPhotos.reduce((s, b) => s + b.size, 0);
+  let after = 0;
+  let done = 0;
+  try {
+    const signed = await cloud.request("/storage/v1/object/sign/photos", {
+      method: "POST", body: { expiresIn: 3600, paths: bigPhotos.map((b) => b.row.storage_path) },
+    });
+    for (const b of bigPhotos) {
+      $("shrink-text").textContent = `Shrinking ${done + 1} of ${bigPhotos.length}…`;
+      const link = signed.find((s) => s.path === b.row.storage_path)?.signedURL;
+      if (!link) throw new Error(`no link for ${b.row.file}`);
+      const res = await fetch(`${SUPABASE_URL}/storage/v1${link}`);
+      if (!res.ok) throw new Error(`download ${b.row.file}: ${res.status}`);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      const tilt = tiltFromJpeg(bytes);
+      const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/jpeg" }), { imageOrientation: "from-image" });
+      const small = await uploadCopy(bitmap, {
+        lat: b.row.latitude, lng: b.row.longitude, altitude: b.row.altitude_m, accuracy: b.row.accuracy_m,
+        time: new Date(b.row.taken_at),
+        description: b.row.file.replace(/\.jpg$/, "") + (tilt != null ? ` tilt ${tilt} deg` : ""),
+      });
+      bitmap.close?.();
+      await cloud.request(`/storage/v1/object/photos/${b.row.storage_path.split("/").map(encodeURIComponent).join("/")}`, {
+        method: "POST", raw: true, body: small, headers: { "Content-Type": "image/jpeg", "x-upsert": "true" },
+      });
+      after += small.size;
+      done++;
+    }
+    toast(`Shrank ${done} photo(s): ${(before / 1e6).toFixed(0)} MB down to ${(after / 1e6).toFixed(1)} MB.`);
+  } catch (err) {
+    toast(`Stopped after ${done}: ${err.message}`, true);
+  } finally {
+    btn.disabled = false;
+    await checkSizes().catch(() => {});
+  }
+});
 
 function drawMap(refit = true) {
   if (!map) {

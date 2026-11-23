@@ -2,6 +2,7 @@ import { forecastBand, forecastRange } from "./model.js";
 import { Store, slots, currentHalf, isoDate, photoName, logCsv, photosCsv, paddockStats, sortPaddockStats, SORT_DEFAULTS, measureCover, coverRanking, forecastFeed } from "./model.js";
 import { encode, shortCode } from "./pluscode.js";
 import { insertExif } from "./exif.js";
+import { uploadCopy } from "./photo-size.js";
 import { Cloud, pendingPhotoFiles, feedSettings } from "./cloud.js";
 
 const store = new Store(localStorage);
@@ -705,12 +706,14 @@ async function savePhoto(file, tilt) {
     bitmap.close?.();
     const jpeg = await new Promise((resolve, reject) =>
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("could not encode photo"))), "image/jpeg", 0.92));
-    const tagged = insertExif(new Uint8Array(await jpeg.arrayBuffer()), {
+    const exif = {
       lat, lng, altitude, accuracy, time,
       description: name.replace(/\.jpg$/, "") + (tilt ? ` tilt ${tilt.forward} deg` : ""),
-    });
+    };
+    const tagged = insertExif(new Uint8Array(await jpeg.arrayBuffer()), exif);
     const photo = new Blob([tagged], { type: "image/jpeg" });
-    download(photo, name);
+    download(photo, name); // full size stays on the phone
+    const upload = await uploadCopy(canvas, exif); // ~0.5 MB copy for the farm's database
 
     const meta = {
       file: name,
@@ -723,7 +726,7 @@ async function savePhoto(file, tilt) {
       tilt: tilt ? tilt.forward : null,
     };
     store.addPhoto(meta);
-    await cloud.photoTaken(meta, photo);
+    await cloud.photoTaken(meta, upload);
     toast(`Saved ${name}${tilt ? ` (tilt ${tilt.forward}°)` : ""}`);
     if (!$("tab-photos").hidden) renderPhotos();
   } catch (err) {
