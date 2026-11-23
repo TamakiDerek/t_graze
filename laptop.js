@@ -99,11 +99,25 @@ function drawMap(refit = true) {
     const label = coverOf(p) == null ? "?" : `${ok ? `${p.paddock} ` : ""}${coverOf(p)}${ok ? " ✓" : "?"}`;
     rect.bindTooltip(label, { permanent: true, direction: "right", offset: [6, 0], className: `cov${ok ? " ok" : ""}` });
     rect.on("click", () => choose(p.file));
+    rect.baseStyle = { color: rect.options.color, weight: 2, fillOpacity: 0.25 };
     squares.set(p.file, rect);
   }
+  markChosen();
   if (!refit) return;
   if (bounds.length) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 19 });
   else map.setView([-37.75, 175.3], 14);
+}
+
+// The photo open in the panel: its square gets a thick white outline and its label stands out,
+// and its row in the list is shaded.
+function markChosen() {
+  for (const [file, rect] of squares) {
+    const on = chosen?.file === file;
+    rect.setStyle(on ? { color: "#ffffff", weight: 5, fillOpacity: 0.45 } : rect.baseStyle);
+    rect.getTooltip()?.getElement()?.classList.toggle("chosen", on);
+    if (on) rect.bringToFront();
+  }
+  for (const li of $("photo-list").children) li.classList.toggle("chosen", li.dataset.file === chosen?.file);
 }
 
 function drawList() {
@@ -119,6 +133,7 @@ function drawList() {
     return li;
   });
   $("photo-list").replaceChildren(...items);
+  markChosen();
 }
 $("photo-list").addEventListener("click", (e) => {
   const li = e.target.closest("li[data-file]");
@@ -146,6 +161,7 @@ async function choose(file) {
     : "Photos of the same paddock on the same day are averaged into one reading.";
   const sq = squares.get(file);
   if (sq) map.panTo(sq.getBounds().getCenter());
+  markChosen();
   const img = $("pick-img");
   img.removeAttribute("src");
   try {
@@ -164,6 +180,7 @@ async function choose(file) {
 }
 $("pick-close").addEventListener("click", () => {
   chosen = null;
+  markChosen();
   $("pick").hidden = true;
   $("pick-none").hidden = false;
 });
