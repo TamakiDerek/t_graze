@@ -6,6 +6,8 @@ Android Chrome and has two jobs:
 - **Grazing log**: a vertical table of half-days (`Nov 17 am`, `Nov 17 pm`, newest first) with two
   paddock boxes per row. Known paddocks are suggested as you type. A name that isn't on the list asks
   *New paddock "…" - add to list?* If you say no, nothing is saved.
+- **Product page** (`about.html`, https://tamakiderek.github.io/t_graze/about.html): what t_graze is, the price
+  ($2 per grazed hectare a year + GST), the data policy, screenshots (`about/`) and how to sign up by email.
 - **Laptop page** (`laptop.html`, e.g. https://tamakiderek.github.io/t_graze/laptop.html): an aerial map
   (Esri World Imagery) with each photo drawn as its plus-code square (about 14 × 14 m) and labelled with
   the cover estimated from it (`photos.cover_estimate`, yellow) or accepted (green, with the paddock). Click
