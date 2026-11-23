@@ -41,7 +41,9 @@
         <a id="pick-link" target="_blank" rel="noopener"><img id="pick-img" alt="Paddock photo"></a>
         <form id="pick-form">
           <label>Paddock
-            <select id="pick-paddock" required><option value="">Choose…</option></select></label>
+            <input id="pick-paddock" list="paddock-names" required autocomplete="off" spellcheck="false"
+              placeholder="Type e.g. D, then pick"></label>
+          <datalist id="paddock-names"></datalist>
           <label>Cover (kg DM/ha)
             <input id="pick-cover" type="number" min="0" max="10000" step="10" required></label>
           <p id="pick-est" class="hint"></p>
