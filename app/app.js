@@ -822,5 +822,27 @@ document.addEventListener("visibilitychange", () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js").catch((err) => console.warn("service worker:", err));
+  // An app left open in the background keeps running the old version. Each time it comes back on
+  // screen, check for a new one; when the new version takes over, reload so the screen uses it.
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  navigator.serviceWorker.register("sw.js")
+    .then((reg) => {
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") reg.update().catch(() => {});
+      });
+    })
+    .catch((err) => console.warn("service worker:", err));
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController || reloading) return; // first install: nothing old to replace
+    reloading = true;
+    location.reload();
+  });
+}
+// Show which version this phone is running (the service worker cache name, e.g. t_graze-v26).
+if ("caches" in window) {
+  caches.keys().then((keys) => {
+    const v = keys.find((k) => k.startsWith("t_graze-v"));
+    if (v) $("app-version").textContent = `App version ${v.replace("t_graze-", "")}`;
+  }).catch(() => {});
 }
