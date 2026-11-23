@@ -28,6 +28,8 @@ create table if not exists public.paddocks (
 -- their estimate.
 alter table public.paddocks add column if not exists cover integer;
 alter table public.paddocks add column if not exists cover_date date;
+-- In or out of the grazing rotation (out = kept for hay/silage etc.; left out of the feed forecast).
+alter table public.paddocks add column if not exists in_rotation boolean not null default true;
 -- Paddock size in hectares (entered with the pencil on the phone, or imported).
 alter table public.paddocks add column if not exists area_ha numeric(7,2) check (area_ha is null or area_ha > 0);
 -- "Haybarn" and "haybarn" are the same paddock.

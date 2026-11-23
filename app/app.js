@@ -48,47 +48,63 @@ function showTab(name) {
 const CHART_MIN = 1000;
 const CHART_MAX = 4000;
 const kg = (n) => n.toLocaleString("en-NZ");
+const barPct = (cover) => Math.max(0, Math.min(1, (cover - CHART_MIN) / (CHART_MAX - CHART_MIN))) * 100;
+const el = (tag, cls, text) => {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+};
+/** One horizontal bar from 1000 to 4000 with its value written after it. */
+function barCell(cover, kind) {
+  const track = el("span", "track");
+  const fill = el("span", `fill ${kind}`);
+  fill.style.width = `${barPct(cover)}%`;
+  track.append(fill, el("span", "cval", cover));
+  return track;
+}
+function chartHead(first, last) {
+  const head = el("div", "chart-row chart-head");
+  head.append(el("span", null, first));
+  const ticks = el("span", "ticks");
+  for (const v of [1000, 2000, 3000, 4000]) ticks.append(el("i", null, v));
+  head.append(ticks, el("span", "avail", last));
+  return head;
+}
+
 function renderAnalysis() {
   const rows = coverRanking(store, new Date());
   const chart = $("cover-chart");
-  chart.replaceChildren();
-  const head = document.createElement("div");
-  head.className = "chart-row chart-head";
-  head.innerHTML = '<span>Paddock</span><span class="ticks"><i>1000</i><i>2000</i><i>3000</i><i>4000</i></span><span class="avail">Avail. kg</span>';
-  chart.append(head);
+  chart.replaceChildren(chartHead("Paddock", "Avail. kg"));
   for (const r of rows) {
-    const row = document.createElement("div");
-    row.className = "chart-row";
-    const pct = Math.max(0, Math.min(1, (r.cover - CHART_MIN) / (CHART_MAX - CHART_MIN))) * 100;
+    const row = el("div", r.out ? "chart-row out" : "chart-row");
+    const name = el("button", "pname", r.name);
+    name.type = "button";
+    name.dataset.name = r.name;
+    name.setAttribute("aria-pressed", String(!r.out));
+    name.title = `${r.name}: ${r.out ? "out of the rotation - tap to put back in" : "in the rotation - tap to take out"}`;
     row.title = `${r.name}: ${r.cover} kg DM/ha ${r.coverKind === "m" ? `(measured ${r.coverAge} days ago)` : "(estimate)"}` +
       (r.area != null ? `, ${r.area} ha` : "");
-    const name = document.createElement("span");
-    name.className = "pname";
-    name.textContent = r.name;
-    const track = document.createElement("span");
-    track.className = "track";
-    const bar = document.createElement("span");
-    bar.className = `fill ${r.coverKind}`;
-    bar.style.width = `${pct}%`;
-    const val = document.createElement("span");
-    val.className = "cval";
-    val.textContent = r.cover;
-    track.append(bar, val);
-    const avail = document.createElement("span");
-    avail.className = "avail";
-    avail.textContent = r.available == null ? "–" : kg(r.available);
-    row.append(name, track, avail);
+    row.append(name, barCell(r.cover, r.out ? "off" : r.coverKind), el("span", "avail", r.out ? "out" : r.available == null ? "–" : kg(r.available)));
     chart.append(row);
   }
-  if (!rows.length) {
-    chart.append(Object.assign(document.createElement("p"), {
-      className: "hint", textContent: "No paddock has a cover yet: enter grazings or measured covers first.",
-    }));
-  }
-  const known = rows.filter((r) => r.available != null);
-  $("chart-total").textContent = known.length ? `· total available ${kg(known.reduce((s, r) => s + r.available, 0))} kg DM` : "";
+  if (!rows.length) chart.append(el("p", "hint", "No paddock has a cover yet: enter grazings or measured covers first."));
+  const known = rows.filter((r) => r.available != null && !r.out);
+  $("chart-total").textContent = known.length ? `· in rotation ${kg(known.reduce((s, r) => s + r.available, 0))} kg DM available` : "";
   renderFeed();
 }
+
+// Tap a paddock name in the cover chart: take it out of the rotation, or put it back in.
+$("cover-chart").addEventListener("click", (event) => {
+  const btn = event.target.closest("button.pname");
+  if (!btn) return;
+  const name = btn.dataset.name;
+  const out = !store.isOut(name);
+  store.setOut(name, out);
+  cloud.paddockRotationSet(name, !out);
+  toast(out ? `${name} out of the rotation (not grazed in the feed ahead)` : `${name} back in the rotation`);
+  renderAnalysis();
+});
 
 // Feed ahead: herd size and intake are remembered on this phone.
 const FEED_KEY = "t_graze_feed";
@@ -110,66 +126,35 @@ $("feed-form").addEventListener("input", () => {
 });
 $("feed-form").addEventListener("submit", (e) => e.preventDefault());
 
-const SVG = "http://www.w3.org/2000/svg";
-const svgEl = (name, attrs, text) => {
-  const el = document.createElementNS(SVG, name);
-  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
-  if (text != null) el.textContent = text;
-  return el;
-};
 const shortDate = (iso) => new Date(iso + "T12:00").toLocaleDateString("en-NZ", { day: "numeric", month: "short" });
 const dayLabel = (iso) => new Date(iso + "T12:00").toLocaleDateString("en-NZ", { weekday: "short", day: "numeric" });
 
+/** Feed ahead, drawn like the cover chart: one row per day, a bar for the average farm cover. */
 function renderFeed() {
   const { cows, perCow } = feedSettings();
   const f = forecastFeed(store, new Date(), { cows, perCow });
   $("feed-demand").textContent = `= ${kg(f.demand)} kg DM a day`;
-  const pts = f.days.filter((d) => d.afc != null);
-  const svg = $("feed-chart");
-  svg.replaceChildren();
-  $("feed-rows").replaceChildren();
-  if (!pts.length) {
-    $("feed-note").textContent = "No paddock has both a cover and an area yet.";
+  const chart = $("feed-chart");
+  chart.replaceChildren();
+  if (!f.days.some((d) => d.afc != null)) {
+    $("feed-note").textContent = "No paddock in the rotation has both a cover and an area yet.";
     return;
   }
-  // chart: average farm cover by day
-  const W = 340, H = 180, L = 38, R = 8, T = 10, B = 22;
-  const lo = Math.floor((Math.min(...pts.map((d) => d.afc)) - 50) / 250) * 250;
-  const hi = Math.ceil((Math.max(...pts.map((d) => d.afc)) + 50) / 250) * 250;
-  const x = (i) => L + (i / (f.days.length - 1)) * (W - L - R);
-  const y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
-  const step = hi - lo > 1500 ? 500 : 250;
-  for (let v = lo; v <= hi; v += step) {
-    svg.append(svgEl("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), class: "grid" }));
-    svg.append(svgEl("text", { x: L - 4, y: y(v) + 3, class: "ylab" }, v));
-  }
-  for (const i of [0, 7, 14, 21].filter((i) => i < f.days.length)) {
-    const anchor = i === 0 ? "start" : i === f.days.length - 1 ? "end" : "middle";
-    svg.append(svgEl("text", { x: x(i), y: H - 6, class: "xlab", "text-anchor": anchor }, i === 0 ? "today" : shortDate(f.days[i].date)));
-  }
-  svg.append(svgEl("polyline", { points: f.days.map((d, i) => `${x(i)},${y(d.afc)}`).join(" "), class: "afc" }));
-  f.days.forEach((d, i) => {
-    const dot = svgEl("circle", { cx: x(i), cy: y(d.afc), r: 2.2, class: d.shortfall ? "dot short" : "dot" });
-    dot.append(svgEl("title", {}, `${shortDate(d.date)}: ${d.afc} kg DM/ha${d.shortfall ? `, short ${kg(d.shortfall)} kg` : ""}`));
-    svg.append(dot);
-  });
-  const shortDays = f.days.filter((d) => d.shortfall);
-  $("feed-note").textContent = `Average cover over ${f.area} ha` +
-    (f.excluded.length ? ` (${f.excluded.length} paddock(s) without a cover or area left out: ${f.excluded.join(", ")})` : "") +
-    (shortDays.length ? `. Not enough feed from ${shortDate(shortDays[0].date)}: short ${kg(shortDays.reduce((s, d) => s + d.shortfall, 0))} kg DM over the 3 weeks.` : ".");
-  // day table
+  const head = chartHead("Day", "Avail. kg");
+  head.append(el("span", "grazed", "Grazed"));
+  chart.append(head);
   for (const d of f.days) {
-    const tr = document.createElement("tr");
-    if (d.shortfall) tr.className = "short";
+    const row = el("div", d.shortfall ? "chart-row short" : "chart-row");
     const grazed = d.grazed.map((g) => g.name + (g.finished ? "" : "…")).join(", ") + (d.shortfall ? ` short ${kg(d.shortfall)}` : "");
-    for (const [text, cls] of [[d === f.days[0] ? "Today" : dayLabel(d.date)], [d.afc, "num"], [kg(d.available), "num"], [grazed]]) {
-      const td = document.createElement("td");
-      td.textContent = text;
-      if (cls) td.className = cls;
-      tr.append(td);
-    }
-    $("feed-rows").append(tr);
+    row.title = `${shortDate(d.date)}: average cover ${d.afc} kg DM/ha, ${kg(d.available)} kg available` + (grazed ? `; ${grazed}` : "");
+    row.append(el("span", "day", d === f.days[0] ? "Today" : dayLabel(d.date)), barCell(d.afc, "e"), el("span", "avail", kg(d.available)), el("span", "grazed", grazed));
+    chart.append(row);
   }
+  const shortDays = f.days.filter((d) => d.shortfall);
+  $("feed-note").textContent = `Average cover over ${f.area} ha in the rotation` +
+    (f.out.length ? `; out of the rotation: ${f.out.join(", ")}` : "") +
+    (f.excluded.length ? `; no cover or area yet: ${f.excluded.join(", ")}` : "") +
+    (shortDays.length ? `. Not enough feed from ${shortDate(shortDays[0].date)}: short ${kg(shortDays.reduce((s, d) => s + d.shortfall, 0))} kg DM over the 3 weeks.` : ".");
 }
 
 // ---------- grazing log ----------

@@ -93,6 +93,11 @@ export class Cloud {
     this.saveState();
     this.soon();
   }
+  paddockRotationSet(name, inRotation) {
+    this.state.paddockOps.push({ op: "rotation", name, inRotation });
+    this.saveState();
+    this.soon();
+  }
   paddockRemoved(name) {
     this.state.paddockOps.push({ op: "remove", name });
     this.saveState();
@@ -245,6 +250,7 @@ export class Cloud {
     this.state.paddockOps = this.store.paddocks.flatMap((name) => [
       { op: "add", name },
       ...(this.store.area(name) != null ? [{ op: "area", name, area: this.store.area(name) }] : []),
+      ...(this.store.isOut(name) ? [{ op: "rotation", name, inRotation: false }] : []),
     ]);
     this.saveState();
     return true;
@@ -296,6 +302,10 @@ export class Cloud {
         } else if (op.op === "area") {
           await this.request(`/rest/v1/paddocks?farm_id=eq.${farm}&name=eq.${encodeURIComponent(op.name)}`, {
             method: "PATCH", headers: { Prefer: "return=minimal" }, body: { area_ha: op.area },
+          });
+        } else if (op.op === "rotation") {
+          await this.request(`/rest/v1/paddocks?farm_id=eq.${farm}&name=eq.${encodeURIComponent(op.name)}`, {
+            method: "PATCH", headers: { Prefer: "return=minimal" }, body: { in_rotation: op.inRotation },
           });
         } else if (op.op === "remove") {
           await this.request(`/rest/v1/paddocks?farm_id=eq.${farm}&name=eq.${encodeURIComponent(op.name)}`, {
@@ -379,7 +389,7 @@ export class Cloud {
     const farm = this.state.farmId;
     const since = new Date(Date.now() - PULL_DAYS * 86_400_000).toISOString().slice(0, 10);
     const [paddocks, rows] = await Promise.all([
-      this.request(`/rest/v1/paddocks?select=name,cover,cover_date,area_ha&farm_id=eq.${farm}`),
+      this.request(`/rest/v1/paddocks?select=name,cover,cover_date,area_ha,in_rotation&farm_id=eq.${farm}`),
       this.request(`/rest/v1/grazing_log?select=day,half,paddock_1,paddock_2&farm_id=eq.${farm}&day=gte.${since}`),
     ]);
     const data = this.store.data;
@@ -387,11 +397,13 @@ export class Cloud {
     data.covers = {};
     data.info ??= {};
     const pendingAreas = new Set(this.state.paddockOps.filter((o) => o.op === "area").map((o) => o.name));
-    for (const { name, cover, cover_date, area_ha } of paddocks) {
+    const pendingRotation = new Set(this.state.paddockOps.filter((o) => o.op === "rotation").map((o) => o.name));
+    for (const { name, cover, cover_date, area_ha, in_rotation } of paddocks) {
       if (!this.store.findPaddock(name) && !pendingNames.has(name)) data.paddocks.push(name);
       const local = this.store.findPaddock(name) ?? name;
       if (cover != null && cover_date) data.covers[local] = { value: cover, date: cover_date };
       if (!pendingAreas.has(local)) data.info[local] = { ...data.info[local], area: area_ha == null ? null : Number(area_ha) };
+      if (!pendingRotation.has(local) && in_rotation != null) data.info[local] = { ...data.info[local], out: !in_rotation };
     }
     // Readings still waiting to upload stay showing.
     for (const r of this.state.coverReadings) {

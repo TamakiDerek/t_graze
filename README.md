@@ -17,9 +17,9 @@ after the last grazing, the measured value from `paddocks.cover`/`cover_date` gr
 `m12` = measured 12 days ago. On the day a paddock is grazed it still shows the cover going in, dropping to
 the residual the next day) and **Interval** (days
 between the starts of the last two grazings; entries up to 3 days apart count as one grazing). The ✏️ button shows and sets the paddock's area (ha), enters a measured cover
-(saved with the estimate it replaces), renames a paddock (the log follows) or removes it (only if unused). The **Analysis** tab charts every paddock with a known cover, highest first, squeezed so about 50 fit
-on one screen: a bar from 1000 to 4000 kg DM/ha (solid = measured, pale = estimate) and the feed available,
-`(cover - 1500) × ha` kg DM (never below 0), with the farm total. Below it, **Feed ahead** forecasts the average farm cover for 3 weeks: enter cows and
+(saved with the estimate it replaces), renames a paddock (the log follows) or removes it (only if unused). The **Analysis** tab charts every paddock with a known cover, highest first; tap a paddock's name to take it out of the
+grazing rotation (e.g. for hay) or put it back: a bar from 1000 to 4000 kg DM/ha (solid = measured, pale = estimate) and the feed available,
+`(cover - 1500) × ha` kg DM (never below 0), with the farm total. Below it, **Feed ahead** forecasts the average farm cover for 3 weeks, one bar per day, over the paddocks in the rotation: enter cows and
 kg DM/cow/day (default 160 × 20, remembered on the phone); each day every paddock grows on the curve, then
 the herd eats from the highest paddock down to 1500 before moving on. A day table lists the paddocks grazed and
 any shortfall.
@@ -58,7 +58,7 @@ What's in Supabase (project setup is in `supabase/`: run `schema.sql`, then `pho
 |-------|-------|
 | `farms`, `farm_members` | Farms and which phones (users) belong to each |
 | `devices` | Registered phones: code, owner name and email, when registered and approved |
-| `paddocks` | Paddock names per farm, size (`area_ha`) and latest measured cover |
+| `paddocks` | Paddock names per farm, size (`area_ha`), whether it's `in_rotation` (false = kept for hay etc.) and latest measured cover |
 | `grazing_log` | One row per farm per half-day: `day`, `half`, `paddock_1`, `paddock_2` |
 | `cover_readings` | Every measured cover: `paddock`, `day`, `cover`, and what the app `predicted` for that paddock that day, grown from `start_cover` on `start_day` (`days_since_grazed`, `model`), for refitting the growth model. The newest also sets `paddocks.cover`/`cover_date` |
 | `photos` | Photo metadata: `file`, `taken_at`, `plus_code` (full 10-digit), `latitude`, `longitude`, `accuracy_m`, `altitude_m`, `storage_path` |

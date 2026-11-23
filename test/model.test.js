@@ -250,3 +250,24 @@ test("feed forecast: reports a shortfall when nothing is left above the residual
   assert.ok(f.days[1].shortfall > 0);
   assert.equal(f.days[2].shortfall, 200); // eaten out yesterday: sits at 1500, nothing to eat
 });
+
+test("out of rotation: kept for hay, not grazed in the forecast, flagged in the ranking", () => {
+  const s = new Store(memory());
+  for (const p of ["Hay", "Graze"]) s.addPaddock(p);
+  s.data.covers = { Hay: { value: 3500, date: "2026-11-21" }, Graze: { value: 2500, date: "2026-11-21" } };
+  s.setArea("Hay", 2);
+  s.setArea("Graze", 2);
+  s.setOut("Hay", true);
+  assert.equal(s.isOut("Hay"), true);
+  assert.equal(s.isOut("Graze"), false);
+  const now = new Date(2026, 10, 21, 9, 0);
+  assert.equal(coverRanking(s, now).find((r) => r.name === "Hay").out, true);
+  const f = forecastFeed(s, now, { cows: 50, perCow: 20, days: 2 });
+  assert.deepEqual(f.out, ["Hay"]);
+  assert.equal(f.area, 2);
+  assert.ok(f.days.slice(1).every((d) => d.grazed.every((g) => g.name === "Graze")));
+  s.renamePaddock("Hay", "Hay Paddock");
+  assert.equal(s.isOut("Hay Paddock"), true); // status follows a rename
+  s.setOut("Hay Paddock", false);
+  assert.equal(forecastFeed(s, now, { cows: 50, perCow: 20, days: 1 }).days[1].grazed[0].name, "Hay Paddock");
+});
