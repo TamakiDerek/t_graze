@@ -23,6 +23,7 @@
     <button role="tab" data-tab="log" aria-selected="true">Grazing</button>
     <button role="tab" data-tab="photos" aria-selected="false">Photos</button>
     <button role="tab" data-tab="paddocks" aria-selected="false">Paddocks</button>
+    <button role="tab" data-tab="analysis" aria-selected="false">Analysis</button>
   </nav>
 
   <main>
@@ -96,6 +97,13 @@
       <p class="hint">CSV files for the laptop side. They save to the phone's Download folder.</p>
       <button id="export-log" class="wide" type="button">Grazing log (CSV)</button>
       <button id="export-photos" class="wide" type="button">Photo list (CSV)</button>
+    </section>
+
+    <section id="tab-analysis" class="tab" hidden>
+      <p class="chart-title"><b>Cover</b> kg DM/ha, highest first <span id="chart-total" class="chart-total"></span></p>
+      <div class="chart" id="cover-chart" role="img" aria-label="Cover by paddock"></div>
+      <p class="hint">Bars run from 1000 to 4000 kg DM/ha (lines at 2000 and 3000); solid = measured, pale = estimate.
+        <b>Avail.</b> = kg DM above the 1500 residual: (cover − 1500) × ha. A dash means the paddock's area isn't known.</p>
     </section>
   </main>
 
