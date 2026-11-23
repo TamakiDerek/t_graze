@@ -694,7 +694,15 @@ async function renderPhotos() {
     li.querySelector(".name").textContent = p.file;
     const when = new Date(p.taken).toLocaleString("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
     const where = p.uploaded ? "uploaded" : pending.has(p.file) ? "waiting to upload" : "on phone only";
-    li.querySelector(".sub").textContent = `${when} · ${p.plusCode} · ±${Math.round(p.accuracy)} m · ${where}`;
+    const tilt = p.tilt == null ? "no tilt (old style)" : `tilt ${p.tilt}°`;
+    li.querySelector(".sub").textContent = `${when} · ${p.plusCode} · ±${Math.round(p.accuracy)} m · ${tilt} · ${where}`;
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "photo-del";
+    del.dataset.file = p.file;
+    del.textContent = "🗑";
+    del.setAttribute("aria-label", `Delete ${p.file}`);
+    li.append(del);
     return li;
   });
   if (!items.length) {
@@ -705,6 +713,17 @@ async function renderPhotos() {
   }
   $("photo-list").replaceChildren(...items);
 }
+
+$("photo-list").addEventListener("click", async (event) => {
+  const btn = event.target.closest("button.photo-del");
+  if (!btn) return;
+  const file = btn.dataset.file;
+  if (!confirm(`Delete ${file} from the app and the farm's database?\n\nThe copy in the phone's Download folder stays; delete that in the Files app if you want it gone.`)) return;
+  store.removePhoto(file);
+  await cloud.photoDeleted(file);
+  toast(`Deleted ${file}`);
+  renderPhotos();
+});
 
 // ---------- sync ----------
 function ago(iso) {
