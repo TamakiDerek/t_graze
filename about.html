@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#2f6b2f">
+  <title>t_graze: a grazing app for dairy farms</title>
+  <meta name="description" content="Log where the cows went, see every paddock's cover, and look three weeks ahead. $2 per grazed hectare a year + GST.">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <style>
+    :root {
+      --bg: #f6f7f2; --card: #ffffff; --ink: #1d2a1d; --muted: #5f6b5f; --line: #d9ddd2;
+      --brand: #2f6b2f; --brand-ink: #ffffff; --soft: #e6f2dc; --note: #fff7e0; --note-line: #e2c46a;
+      color-scheme: light dark;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #121612; --card: #1b211b; --ink: #e5ebe2; --muted: #9aa597; --line: #2f382f;
+        --brand: #3f8a3f; --soft: #23361f; --note: #2a2716; --note-line: #7a6a2a;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body { background: var(--bg); color: var(--ink); font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    a { color: var(--brand); }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+    header.top { background: var(--brand); color: var(--brand-ink); }
+    header.top .wrap { display: flex; justify-content: space-between; align-items: center; padding-top: 12px; padding-bottom: 12px; }
+    header.top b { font-size: 1.2rem; }
+    header.top a { color: var(--brand-ink); text-decoration: none; font-size: 0.95rem; opacity: 0.9; }
+    .hero { padding: 44px 0 28px; }
+    .hero h1 { margin: 0 0 10px; font-size: clamp(1.9rem, 5vw, 2.8rem); line-height: 1.15; }
+    .hero p { margin: 0 0 18px; max-width: 40em; font-size: 1.1rem; color: var(--muted); }
+    .cta { display: inline-block; padding: 12px 20px; border-radius: 10px; background: var(--brand); color: var(--brand-ink); text-decoration: none; font-weight: 600; }
+    .price { display: inline-block; margin-left: 14px; color: var(--muted); }
+    section { padding: 26px 0; }
+    h2 { font-size: 1.5rem; margin: 0 0 12px; }
+    .policy { background: var(--note); border: 2px solid var(--note-line); border-radius: 14px; padding: 22px 24px; }
+    .policy h2 { margin-bottom: 6px; }
+    .policy .lead { margin: 0 0 14px; color: var(--muted); }
+    .policy dl { margin: 0; display: grid; gap: 12px; }
+    .policy dt { font-weight: 700; }
+    .policy dd { margin: 2px 0 0; }
+    .wide-shot { margin: 0 0 26px; }
+    .wide-shot img { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18); }
+    .wide-shot figcaption { margin-top: 8px; font-size: 0.95rem; color: var(--muted); }
+    h3.sub { font-size: 1.15rem; margin: 0 0 12px; }
+    .shots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .shots figure { margin: 0; }
+    .shots img { display: block; width: 100%; height: auto; border-radius: 22px; border: 6px solid #0b0d0b; background: #0b0d0b; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18); }
+    .shots figcaption { margin-top: 8px; font-size: 0.95rem; color: var(--muted); }
+    .features { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 28px; margin: 0; padding: 0; list-style: none; }
+    .features b { display: block; }
+    .steps { margin: 0; padding-left: 1.3em; }
+    .steps li { margin: 6px 0; }
+    .box { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px 24px; }
+    .eg { color: var(--muted); }
+    footer { padding: 30px 0 40px; color: var(--muted); font-size: 0.9rem; }
+    @media (max-width: 720px) {
+      .shots { grid-template-columns: 1fr; max-width: 340px; margin: 0 auto; }
+      .features { grid-template-columns: 1fr; }
+      .price { display: block; margin: 12px 0 0; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap"><b>t_graze</b><a href="#start">Get started</a></div>
+  </header>
+
+  <main class="wrap">
+    <div class="hero">
+      <h1>Know your grass from your back pocket.</h1>
+      <p>t_graze is a simple grazing app for dairy farms. Note where the cows went each half-day, see every
+        paddock's cover at a glance, and look three weeks ahead to see if the feed will hold up.
+        No passwords, no fuss.</p>
+      <a class="cta" href="#start">Get started</a>
+      <span class="price"><b>$2 per grazed hectare a year + GST.</b> A 150 ha platform is $300 + GST.</span>
+    </div>
+
+    <section id="data" class="policy">
+      <h2>Your data: please read this first</h2>
+      <p class="lead">Before anything else, here's exactly what happens to your farm's information.</p>
+      <dl>
+        <dt>It's your data.</dt>
+        <dd>Your grazing records, covers and photos belong to your farm. We keep them so the app works, and
+          for nothing else.</dd>
+
+        <dt>What we keep</dt>
+        <dd>Your grazing log (which paddock, which half-day), paddock names and areas, cover readings, herd size and
+          intake, and the names and emails of people whose phones you approve. Photos are kept as a small copy with
+          the time and GPS position, and only for three days. See below.</dd>
+
+        <dt>Where it lives</dt>
+        <dd>In a database run by Supabase, in Sydney, Australia. Everything travels to and from it encrypted (https).</dd>
+
+        <dt>Who can see it</dt>
+        <dd>Only the phones and laptops you approve for your farm. The database itself walls each farm off from
+          every other farm. Tamaki Control (that's us) can see it to run the service and help when you ask.</dd>
+
+        <dt>Photos go after three days</dt>
+        <dd>The full-size photo stays on your phone. A small copy (about 0.5 MB) goes up so you can check covers on
+          the laptop, and it's deleted automatically three days after it's taken. The cover readings you accept
+          from photos are kept.</dd>
+
+        <dt>No passwords</dt>
+        <dd>Each phone shows a code. You send it to us, we approve it for your farm, and it's in. If a phone is lost
+          or someone leaves, we take it off your farm and it can't see anything any more.</dd>
+
+        <dt>We don't sell it, and we only share it with your consent</dt>
+        <dd>Your data is never sold. With your consent, we'll share it with <b>DairyNZ</b> so they can use it
+          in their work improving dairying in New Zealand. We'll ask you first, it's your choice, and you can
+          change your mind at any time. Apart from that, it isn't given to anyone (your dairy company, bank,
+          council or anyone else) unless you ask us to.</dd>
+
+        <dt>You can take it with you</dt>
+        <dd>The app exports your grazing log and photo list as spreadsheet files (CSV) whenever you like. If you
+          stop subscribing, we delete your farm's data within 30 days. Export it first if you want to keep it.</dd>
+      </dl>
+    </section>
+
+    <section>
+      <h2>What it looks like</h2>
+      <figure class="wide-shot">
+        <img src="about/laptop.webp" width="1906" height="942" alt="Laptop view: paddock photos on an aerial map, the chosen photo with its paddock and cover, and the phone app alongside">
+        <figcaption><b>On the laptop.</b> Each paddock photo sits on an aerial map with its cover. Click one to see
+          the photo, say which paddock it's in and accept the cover. The phone app runs alongside, so you can
+          check covers and the feed ahead on a big screen.</figcaption>
+      </figure>
+      <h3 class="sub">On the phone</h3>
+      <div class="shots">
+        <figure>
+          <img src="about/paddocks.png" width="390" height="844" alt="Paddocks screen: each paddock with days since grazed, cover and grazing interval">
+          <figcaption><b>Paddocks.</b> Days since each paddock was grazed, its cover (e = estimate, m = measured,
+            p = from a photo) and the grazing interval. Tap a name to take it out for hay.</figcaption>
+        </figure>
+        <figure>
+          <img src="about/analysis.png" width="390" height="844" alt="Analysis screen: bar chart of cover by paddock, highest first, with feed available">
+          <figcaption><b>Cover today.</b> Every paddock from highest to lowest, with the feed available above a
+            1500 residual. Measured covers in solid green, photo covers in blue.</figcaption>
+        </figure>
+        <figure>
+          <img src="about/feed.png" width="390" height="844" alt="Feed ahead: average farm cover for the next three weeks as a line with shaded uncertainty">
+          <figcaption><b>Feed ahead.</b> Put in your herd size and intake and see the average farm cover for the
+            next three weeks. The shading widens the further out you look.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section>
+      <h2>What it does</h2>
+      <ul class="features">
+        <li><b>Grazing log by half-day</b>Pick the paddock for each morning and afternoon. Two paddocks at once is fine.</li>
+        <li><b>Covers that keep up</b>An estimate grows each day after grazing. Type in a measured cover and that takes over.</li>
+        <li><b>Standard paddock photos</b>The camera guides you: phone at belt height, toe in the shot, tilt meter turns green.</li>
+        <li><b>Laptop map</b>Each photo on an aerial map. Click it, say which paddock, accept or change the cover.</li>
+        <li><b>Paddocks in and out</b>Take paddocks out for hay or silage and the forecast leaves them alone.</li>
+        <li><b>Works with no signal</b>Everything saves on the phone and uploads when you're back in coverage.</li>
+      </ul>
+    </section>
+
+    <section id="start">
+      <div class="box">
+        <h2>Getting started</h2>
+        <ol class="steps">
+          <li>Email <a href="mailto:t_graze@tamakicontrol.com?subject=t_graze%20subscription">t_graze@tamakicontrol.com</a>
+            with your <b>farm ID</b> <span class="eg">(for example your Fonterra supplier number)</span> and your
+            <b>grazed area in hectares</b>.</li>
+          <li>We set your farm up and send you the link.</li>
+          <li>Open it on each phone, add it to the home screen, and send us the code it shows. We approve it and
+            you're away.</li>
+        </ol>
+        <p><b>$2 per grazed hectare a year + GST</b>, paid annually. Works on Android phones (Chrome) and any laptop
+          browser. iPhones haven't been tested yet.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap">t_graze is made in New Zealand by Tamaki Control.
+    Questions? <a href="mailto:t_graze@tamakicontrol.com">t_graze@tamakicontrol.com</a></footer>
+</body>
+</html>
