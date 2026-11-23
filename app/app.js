@@ -178,7 +178,7 @@ $("paddock-rows").addEventListener("click", (event) => {
   editing = btn.dataset.name;
   const uses = store.paddockUses(editing);
   $("edit-title").textContent = editing;
-  $("edit-name").value = editing;
+  $("edit-name").value = "";
   $("edit-cover").value = "";
   $("edit-area").value = store.area(editing) ?? "";
   $("edit-remove").disabled = uses > 0;
@@ -193,7 +193,7 @@ $("edit-form").addEventListener("submit", (event) => {
   if (action === "cancel" || !editing) return;
   try {
     if (action === "save") {
-      const next = $("edit-name").value;
+      const next = $("edit-name").value.trim() || editing;
       const coverText = $("edit-cover").value.trim();
       const coverValue = Number(coverText);
       if (coverText && !(coverValue >= 0 && coverValue <= 10000)) throw new Error("Cover must be a number from 0 to 10000");
