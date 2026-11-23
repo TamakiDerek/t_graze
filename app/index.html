@@ -12,7 +12,7 @@
 </head>
 <body>
   <header class="bar">
-    <h1>t_graze</h1>
+    <h1>t_graze <small id="app-version" class="ver"></small></h1>
     <div class="chips">
       <button id="gps" class="gps" type="button" aria-live="polite">GPS: starting…</button>
       <button id="sync" class="gps" type="button" aria-label="Sync status">☁</button>
@@ -41,7 +41,6 @@
         step forward so your toe is at the bottom, and tilt the phone forward until the bar goes green
         (about 35° from straight down). The tilt is saved with the photo.</p>
       <ul id="photo-list" class="list"></ul>
-      <p id="app-version" class="hint"></p>
     </section>
 
     <section id="tab-paddocks" class="tab" hidden>
@@ -173,6 +172,7 @@
   <div id="toast" class="toast" role="status" hidden></div>
   <datalist id="paddock-names"></datalist>
 
+  <script src="version.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

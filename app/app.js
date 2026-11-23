@@ -854,10 +854,5 @@ if ("serviceWorker" in navigator) {
     if (document.visibilityState === "hidden") reloadIfIdle();
   });
 }
-// Show which version this phone is running (the service worker cache name, e.g. t_graze-v26).
-if ("caches" in window) {
-  caches.keys().then((keys) => {
-    const v = keys.find((k) => k.startsWith("t_graze-v"));
-    if (v) $("app-version").textContent = `App version ${v.replace("t_graze-", "")}`;
-  }).catch(() => {});
-}
+// The version this screen is running, next to the name in the top bar.
+$("app-version").textContent = self.T_GRAZE_VERSION ?? "";

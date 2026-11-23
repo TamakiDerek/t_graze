@@ -103,7 +103,7 @@ npm start
 work in a desktop browser. On a phone the app must be served over **HTTPS**, or Chrome won't give it GPS
 or the install option. Static hosting such as GitHub Pages is enough.
 
-When you change files in `app/`, bump `CACHE` in `app/sw.js` so phones pick up the new version for
+When you change files in `app/`, bump the version in `app/version.js` so phones pick up the new version for
 offline use.
 
 ## Install on the phone
@@ -113,7 +113,7 @@ Open the HTTPS address in Chrome, allow Location, then use **⋮ → Add to Home
 ## Publish
 
 The live app is served by GitHub Pages from the `gh-pages` branch, which holds just the contents of
-`app/`. After committing changes on `main` (and bumping `CACHE` in `app/sw.js`):
+`app/`. After committing changes on `main` (and bumping the version in `app/version.js`):
 
 ```powershell
 git push origin main
