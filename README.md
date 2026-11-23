@@ -12,7 +12,7 @@ Android Chrome and has two jobs:
   GPS position, altitude, accuracy and capture time are written into the photo's EXIF.
 
 The Paddocks tab is a sortable table (tap a heading; tap again to reverse): **Last grazed** (days ago),
-**Cover** (kg DM/ha: an estimate tagged `e` of 1500 the day after grazing plus 100 a day, or, once measured
+**Cover** (kg DM/ha: an estimate tagged `e`: 1500 the day after grazing, then growing each day at a rate that depends on the cover reached, from `GROWTH_CURVE` in `app/model.js` (100/day at 2000–2200, 5 less per 100 kg either side, minimum 30), or, once measured
 after the last grazing, the measured value from `paddocks.cover`/`cover_date` tagged e.g. `v12` = measured 12
 days ago) and **Interval** (days
 between the starts of the last two grazings; entries up to 3 days apart count as one grazing). The ✏️ button renames

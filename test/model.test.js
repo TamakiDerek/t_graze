@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store, slots, photoName, logCsv, paddockStats, sortPaddockStats } from "../app/model.js";
+import { Store, slots, photoName, logCsv, paddockStats, sortPaddockStats, growthRate, estimateCover } from "../app/model.js";
 
 const memory = () => {
   const m = new Map();
@@ -89,12 +89,12 @@ test("paddock stats: days since last graze, visit-to-visit interval, cover", () 
 
   const now = new Date(2026, 10, 21, 9, 0);
   const byName = Object.fromEntries(paddockStats(s, now).map((r) => [r.name, r]));
-  assert.deepEqual(byName.A1, { name: "A1", lastDays: 11, interval: 21, cover: 2500, coverKind: "e", coverAge: null });
+  assert.deepEqual(byName.A1, { name: "A1", lastDays: 11, interval: 21, cover: 2404, coverKind: "e", coverAge: null });
   assert.deepEqual(byName.A2, { name: "A2", lastDays: 1, interval: null, cover: 1500, coverKind: "e", coverAge: null });
   assert.deepEqual(byName.B1, { name: "B1", lastDays: 0, interval: 27, cover: 1500, coverKind: "e", coverAge: null });
   assert.deepEqual(byName.Never, { name: "Never", lastDays: null, interval: null, cover: null, coverKind: null, coverAge: null });
   assert.deepEqual(byName.Measured, { name: "Measured", lastDays: 20, interval: null, cover: 2650, coverKind: "v", coverAge: 12 });
-  assert.deepEqual(byName.Stale, { name: "Stale", lastDays: 22, interval: null, cover: 3600, coverKind: "e", coverAge: null });
+  assert.deepEqual(byName.Stale, { name: "Stale", lastDays: 22, interval: null, cover: 3179, coverKind: "e", coverAge: null });
 
   const rows = paddockStats(s, now);
   const names = (key, dir) => sortPaddockStats(rows, key, dir).map((r) => r.name);
@@ -127,4 +127,14 @@ test("grazing again within 3 days continues the visit; 4 days apart is a new one
   assert.equal(byName.Cont.interval, 29); // Oct 20 -> Nov 18 (Nov 21 continues it)
   assert.equal(byName.New.interval, 4); // Nov 17 -> Nov 21
   assert.equal(byName.Cont.lastDays, 0);
+});
+
+test("growth curve: 100/day at 2000-2200, 5 less per 100 kg either side, minimum 30", () => {
+  const rates = [500, 1500, 1900, 2000, 2100, 2200, 2300, 2400, 3600, 4000].map((c) => growthRate(c));
+  assert.deepEqual(rates, [30, 75, 95, 100, 100, 100, 95, 90, 30, 30]);
+  assert.equal(estimateCover(0), 1500);
+  assert.equal(estimateCover(1), 1500);
+  assert.equal(estimateCover(2), 1575); // 1500 + 75
+  // any [cover, growth] table can replace the curve
+  assert.equal(growthRate(250, [[0, 10], [500, 20]]), 15);
 });
