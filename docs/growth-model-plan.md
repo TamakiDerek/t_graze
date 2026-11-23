@@ -59,7 +59,4 @@ The estimate stays offline-capable.
 
 - `estimateCover(start, startDate, today, factorsFor)`: loop over actual dates so each day's factors
   can be looked up.
-- A `covers` history table (paddock, date, value, method, predicted), not just the latest value on
-  `paddocks`.
-- A cover-entry screen on the phone (the `v` readings).
 - Unit tests for each factor table and for the calibration ratio.
