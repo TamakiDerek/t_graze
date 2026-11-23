@@ -44,6 +44,7 @@ button, input { font: inherit; color: inherit; }
   background: var(--brand); color: var(--brand-ink);
 }
 .bar h1 { margin: 0; font-size: 1.15rem; }
+.bar h1 .ver { font-size: 0.7rem; font-weight: 400; opacity: 0.75; vertical-align: super; }
 .gps {
   border: 0; border-radius: 999px; padding: 4px 10px;
   background: rgba(255, 255, 255, 0.18); color: inherit; font-size: 0.85rem;

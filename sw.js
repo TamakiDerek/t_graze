@@ -1,8 +1,10 @@
 // Offline support: network first (so updates show up when there's signal), cache fallback in the paddock.
-const CACHE = "t_graze-v27";
+importScripts("version.js"); // sets self.T_GRAZE_VERSION
+const CACHE = `t_graze-${self.T_GRAZE_VERSION}`;
 const SHELL = [
   "./",
   "index.html",
+  "version.js",
   "styles.css",
   "app.js",
   "model.js",
