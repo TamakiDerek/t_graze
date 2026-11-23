@@ -180,6 +180,7 @@ $("paddock-rows").addEventListener("click", (event) => {
   $("edit-title").textContent = editing;
   $("edit-name").value = editing;
   $("edit-cover").value = "";
+  $("edit-area").value = store.area(editing) ?? "";
   $("edit-remove").disabled = uses > 0;
   $("edit-note").textContent = uses
     ? `Used in the grazing log ${uses} time(s), so it can be renamed (the log follows) but not removed.`
@@ -196,12 +197,20 @@ $("edit-form").addEventListener("submit", (event) => {
       const coverText = $("edit-cover").value.trim();
       const coverValue = Number(coverText);
       if (coverText && !(coverValue >= 0 && coverValue <= 10000)) throw new Error("Cover must be a number from 0 to 10000");
+      const areaText = $("edit-area").value.trim();
+      if (areaText && !(Number(areaText) > 0)) throw new Error("Area must be a number of hectares, more than 0");
       const done = [];
       let name = editing;
       if (next.trim() !== editing) {
         name = store.renamePaddock(editing, next);
         if (name !== editing) cloud.paddockRenamed(editing, name);
         done.push(`Renamed to "${name}" (grazing log updated)`);
+      }
+      const oldArea = store.area(name);
+      const newArea = areaText === "" ? null : Math.round(Number(areaText) * 100) / 100;
+      if (newArea !== oldArea) {
+        cloud.paddockAreaSet(name, store.setArea(name, newArea));
+        done.push(newArea == null ? `Area cleared for ${name}` : `${name} is ${newArea} ha`);
       }
       if (coverText) {
         const reading = measureCover(store, name, coverText, new Date());

@@ -28,6 +28,8 @@ create table if not exists public.paddocks (
 -- their estimate.
 alter table public.paddocks add column if not exists cover integer;
 alter table public.paddocks add column if not exists cover_date date;
+-- Paddock size in hectares (entered with the pencil on the phone, or imported).
+alter table public.paddocks add column if not exists area_ha numeric(7,2) check (area_ha is null or area_ha > 0);
 -- "Haybarn" and "haybarn" are the same paddock.
 create unique index if not exists paddocks_name_ci on public.paddocks (farm_id, lower(name));
 

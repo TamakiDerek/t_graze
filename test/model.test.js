@@ -181,3 +181,20 @@ test("grazing day keeps the going-in cover; it drops to the residual the next da
   assert.deepEqual([at(today, "P").cover, at(today, "P").coverKind, at(today, "P").coverAge], [3000, "m", 0]);
   assert.deepEqual([at(tomorrow, "P").cover, at(tomorrow, "P").coverKind], [1500, "e"]);
 });
+
+test("paddock area: set, clear, follows renames, goes with removal", () => {
+  const s = new Store(memory());
+  s.addPaddock("A1");
+  assert.equal(s.area("A1"), null);
+  assert.equal(s.setArea("A1", "3.456"), 3.46);
+  assert.equal(s.area("A1"), 3.46);
+  s.renamePaddock("A1", "A1 North");
+  assert.equal(s.area("A1 North"), 3.46);
+  assert.equal(s.area("A1"), null);
+  assert.throws(() => s.setArea("A1 North", "-2"));
+  assert.throws(() => s.setArea("A1 North", "big"));
+  assert.equal(s.setArea("A1 North", ""), null);
+  s.setArea("A1 North", 2);
+  s.removePaddock("A1 North");
+  assert.equal(s.data.info["A1 North"], undefined);
+});

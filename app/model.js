@@ -44,7 +44,8 @@ export function photoName(now, shortPlusCode, usedNames) {
   return name;
 }
 
-const EMPTY = () => ({ version: 1, paddocks: [], log: {}, photos: [], covers: {} });
+// info: per-paddock details, { name: { area: hectares } }
+const EMPTY = () => ({ version: 1, paddocks: [], log: {}, photos: [], covers: {}, info: {} });
 
 const DAY_MS = 86_400_000;
 const dayNumber = (iso) => {
@@ -244,9 +245,11 @@ export class Store {
     const clash = this.findPaddock(clean);
     if (clash && clash !== oldName) throw new Error(`"${clash}" is already on the list`);
     this.data.paddocks = this.data.paddocks.map((p) => (p === oldName ? clean : p));
-    if (this.data.covers && oldName in this.data.covers) { // measured covers: { value, date }
-      this.data.covers[clean] = this.data.covers[oldName];
-      if (clean !== oldName) delete this.data.covers[oldName];
+    for (const map of [this.data.covers, this.data.info]) { // keyed by paddock name
+      if (map && oldName in map) {
+        map[clean] = map[oldName];
+        if (clean !== oldName) delete map[oldName];
+      }
     }
     for (const row of Object.values(this.data.log)) {
       row.forEach((p, i) => {
@@ -265,7 +268,24 @@ export class Store {
   removePaddock(name) {
     if (this.paddockUses(name)) throw new Error(`"${name}" is used in the grazing log`);
     this.data.paddocks = this.data.paddocks.filter((p) => p !== name);
+    delete this.data.info?.[name];
     this.save();
+  }
+
+  /** Paddock size in hectares, or null if not known. */
+  area(name) {
+    return this.data.info?.[name]?.area ?? null;
+  }
+
+  /** Sets (or clears, with "" / null) a paddock's size in hectares. Returns the stored value. */
+  setArea(name, value) {
+    const text = value == null ? "" : String(value).trim();
+    const area = text === "" ? null : Math.round(Number(text) * 100) / 100;
+    if (area !== null && !(area > 0 && area < 100000)) throw new Error("Area must be a number of hectares, more than 0");
+    this.data.info ??= {};
+    this.data.info[name] = { ...this.data.info[name], area };
+    this.save();
+    return area;
   }
 
   /** The two paddock slots for a half-day: ["", ""] when nothing is entered. */

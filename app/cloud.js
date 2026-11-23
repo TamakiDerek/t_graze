@@ -84,6 +84,12 @@ export class Cloud {
   paddockRenamed(from, to) {
     this.state.paddockOps.push({ op: "rename", from, to });
     for (const r of this.state.coverReadings) if (r.paddock === from) r.paddock = to;
+    // area ops queued before the rename go ahead of it, so they keep the old name (PATCH runs first)
+    this.saveState();
+    this.soon();
+  }
+  paddockAreaSet(name, area) {
+    this.state.paddockOps.push({ op: "area", name, area });
     this.saveState();
     this.soon();
   }
@@ -236,7 +242,10 @@ export class Cloud {
     this.state.farmName = farms[0].farms?.name ?? "";
     // Everything already on the phone goes up with the first sync.
     this.state.dirtyLog = Object.keys(this.store.data.log);
-    this.state.paddockOps = this.store.paddocks.map((name) => ({ op: "add", name }));
+    this.state.paddockOps = this.store.paddocks.flatMap((name) => [
+      { op: "add", name },
+      ...(this.store.area(name) != null ? [{ op: "area", name, area: this.store.area(name) }] : []),
+    ]);
     this.saveState();
     return true;
   }
@@ -283,6 +292,10 @@ export class Cloud {
         } else if (op.op === "rename") {
           await this.request("/rest/v1/rpc/rename_paddock", {
             method: "POST", body: { f: farm, old_name: op.from, new_name: op.to },
+          });
+        } else if (op.op === "area") {
+          await this.request(`/rest/v1/paddocks?farm_id=eq.${farm}&name=eq.${encodeURIComponent(op.name)}`, {
+            method: "PATCH", headers: { Prefer: "return=minimal" }, body: { area_ha: op.area },
           });
         } else if (op.op === "remove") {
           await this.request(`/rest/v1/paddocks?farm_id=eq.${farm}&name=eq.${encodeURIComponent(op.name)}`, {
@@ -366,15 +379,19 @@ export class Cloud {
     const farm = this.state.farmId;
     const since = new Date(Date.now() - PULL_DAYS * 86_400_000).toISOString().slice(0, 10);
     const [paddocks, rows] = await Promise.all([
-      this.request(`/rest/v1/paddocks?select=name,cover,cover_date&farm_id=eq.${farm}`),
+      this.request(`/rest/v1/paddocks?select=name,cover,cover_date,area_ha&farm_id=eq.${farm}`),
       this.request(`/rest/v1/grazing_log?select=day,half,paddock_1,paddock_2&farm_id=eq.${farm}&day=gte.${since}`),
     ]);
     const data = this.store.data;
     const pendingNames = new Set(this.state.paddockOps.flatMap((o) => [o.name, o.from, o.to]));
     data.covers = {};
-    for (const { name, cover, cover_date } of paddocks) {
+    data.info ??= {};
+    const pendingAreas = new Set(this.state.paddockOps.filter((o) => o.op === "area").map((o) => o.name));
+    for (const { name, cover, cover_date, area_ha } of paddocks) {
       if (!this.store.findPaddock(name) && !pendingNames.has(name)) data.paddocks.push(name);
-      if (cover != null && cover_date) data.covers[this.store.findPaddock(name) ?? name] = { value: cover, date: cover_date };
+      const local = this.store.findPaddock(name) ?? name;
+      if (cover != null && cover_date) data.covers[local] = { value: cover, date: cover_date };
+      if (!pendingAreas.has(local)) data.info[local] = { ...data.info[local], area: area_ha == null ? null : Number(area_ha) };
     }
     // Readings still waiting to upload stay showing.
     for (const r of this.state.coverReadings) {

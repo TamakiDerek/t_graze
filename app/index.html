@@ -61,6 +61,8 @@
         <form id="edit-form" method="dialog">
           <h2 id="edit-title"></h2>
           <label>Name <input id="edit-name" autocomplete="off" spellcheck="false" enterkeyhint="done"></label>
+          <label>Area (ha)
+            <input id="edit-area" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="not known" enterkeyhint="next"></label>
           <label>Cover measured today (kg DM/ha)
             <input id="edit-cover" type="number" inputmode="numeric" min="0" max="10000" step="1" placeholder="leave blank if not measured" enterkeyhint="done"></label>
           <p id="edit-note" class="hint"></p>

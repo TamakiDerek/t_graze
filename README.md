@@ -16,7 +16,7 @@ The Paddocks tab is a sortable table (tap a heading; tap again to reverse): **La
 after the last grazing, the measured value from `paddocks.cover`/`cover_date` grown the same way since, tagged e.g.
 `m12` = measured 12 days ago. On the day a paddock is grazed it still shows the cover going in, dropping to
 the residual the next day) and **Interval** (days
-between the starts of the last two grazings; entries up to 3 days apart count as one grazing). The ✏️ button enters a measured cover
+between the starts of the last two grazings; entries up to 3 days apart count as one grazing). The ✏️ button shows and sets the paddock's area (ha), enters a measured cover
 (saved with the estimate it replaces), renames a paddock (the log follows) or removes it (only if unused). The tab also
 exports CSVs for the laptop side:
 
@@ -51,7 +51,7 @@ What's in Supabase (project setup is in `supabase/`: run `schema.sql`, then `pho
 |-------|-------|
 | `farms`, `farm_members` | Farms and which phones (users) belong to each |
 | `devices` | Registered phones: code, owner name and email, when registered and approved |
-| `paddocks` | Paddock names per farm |
+| `paddocks` | Paddock names per farm, size (`area_ha`) and latest measured cover |
 | `grazing_log` | One row per farm per half-day: `day`, `half`, `paddock_1`, `paddock_2` |
 | `cover_readings` | Every measured cover: `paddock`, `day`, `cover`, and what the app `predicted` for that paddock that day, grown from `start_cover` on `start_day` (`days_since_grazed`, `model`), for refitting the growth model. The newest also sets `paddocks.cover`/`cover_date` |
 | `photos` | Photo metadata: `file`, `taken_at`, `plus_code` (full 10-digit), `latitude`, `longitude`, `accuracy_m`, `altitude_m`, `storage_path` |
