@@ -107,7 +107,10 @@ export const GRAZING_GAP_DAYS = 3;
  * - interval: days between the start of the previous visit and the start of the latest one
  * - cover / coverKind / coverAge / coverFrom:
  *     "m" = measured on a day after the last grazing, grown since; coverAge = days since measured
- *     "e" = estimated from the residual after grazing (on the grazing day itself it's the residual)
+ *     "e" = estimated from the residual after grazing
+ *     On a day the paddock is being grazed, cover is still what it was going in (today's entry is
+ *     ignored for cover), so "how much grass are they getting?" has an answer. It drops to the
+ *     residual the next day. A cover measured that day counts as the pre-grazing cover.
  *     null = never grazed and never measured
  *     coverFrom = { cover, date } the figure grew from (the measurement, or the residual the day after grazing)
  */
@@ -128,15 +131,17 @@ export function paddockStats(store, now) {
     const lastGrazed = list.length ? list[list.length - 1] : null;
     const lastDays = lastGrazed == null ? null : today - lastGrazed;
 
+    // Cover ignores today's grazing: it resets to the residual from tomorrow.
+    const coverGrazed = list.filter((d) => d < today).at(-1) ?? null;
     let start = null; // where today's cover grows from
     let coverKind = null;
     const measured = store.data.covers?.[name];
     const measuredDay = measured?.date ? dayNumber(measured.date) : null;
-    if (Number.isFinite(measured?.value) && measuredDay != null && (lastGrazed == null || measuredDay > lastGrazed)) {
+    if (Number.isFinite(measured?.value) && measuredDay != null && (coverGrazed == null || measuredDay > coverGrazed)) {
       start = { cover: measured.value, day: measuredDay };
       coverKind = "m";
-    } else if (lastGrazed != null) {
-      start = { cover: COVER_AFTER_GRAZING, day: lastGrazed + 1 };
+    } else if (coverGrazed != null) {
+      start = { cover: COVER_AFTER_GRAZING, day: coverGrazed + 1 };
       coverKind = "e";
     }
     const cover = start ? growCover(start.cover, Math.max(0, today - start.day)) : null;
