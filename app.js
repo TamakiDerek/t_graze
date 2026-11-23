@@ -1,4 +1,4 @@
-import { Store, slots, currentHalf, isoDate, photoName, logCsv, photosCsv, paddockStats, sortPaddockStats, SORT_DEFAULTS, measureCover, coverRanking } from "./model.js";
+import { Store, slots, currentHalf, isoDate, photoName, logCsv, photosCsv, paddockStats, sortPaddockStats, SORT_DEFAULTS, measureCover, coverRanking, forecastFeed } from "./model.js";
 import { encode, shortCode } from "./pluscode.js";
 import { insertExif } from "./exif.js";
 import { Cloud, pendingPhotoFiles } from "./cloud.js";
@@ -87,6 +87,89 @@ function renderAnalysis() {
   }
   const known = rows.filter((r) => r.available != null);
   $("chart-total").textContent = known.length ? `· total available ${kg(known.reduce((s, r) => s + r.available, 0))} kg DM` : "";
+  renderFeed();
+}
+
+// Feed ahead: herd size and intake are remembered on this phone.
+const FEED_KEY = "t_graze_feed";
+const FEED_DEFAULTS = { cows: 160, perCow: 20 };
+function feedSettings() {
+  try {
+    return { ...FEED_DEFAULTS, ...JSON.parse(localStorage.getItem(FEED_KEY) || "{}") };
+  } catch {
+    return { ...FEED_DEFAULTS };
+  }
+}
+$("feed-cows").value = feedSettings().cows;
+$("feed-per").value = feedSettings().perCow;
+$("feed-form").addEventListener("input", () => {
+  const cows = Number($("feed-cows").value);
+  const perCow = Number($("feed-per").value);
+  if (cows >= 0 && perCow >= 0) localStorage.setItem(FEED_KEY, JSON.stringify({ cows, perCow }));
+  renderFeed();
+});
+$("feed-form").addEventListener("submit", (e) => e.preventDefault());
+
+const SVG = "http://www.w3.org/2000/svg";
+const svgEl = (name, attrs, text) => {
+  const el = document.createElementNS(SVG, name);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  if (text != null) el.textContent = text;
+  return el;
+};
+const shortDate = (iso) => new Date(iso + "T12:00").toLocaleDateString("en-NZ", { day: "numeric", month: "short" });
+const dayLabel = (iso) => new Date(iso + "T12:00").toLocaleDateString("en-NZ", { weekday: "short", day: "numeric" });
+
+function renderFeed() {
+  const { cows, perCow } = feedSettings();
+  const f = forecastFeed(store, new Date(), { cows, perCow });
+  $("feed-demand").textContent = `= ${kg(f.demand)} kg DM a day`;
+  const pts = f.days.filter((d) => d.afc != null);
+  const svg = $("feed-chart");
+  svg.replaceChildren();
+  $("feed-rows").replaceChildren();
+  if (!pts.length) {
+    $("feed-note").textContent = "No paddock has both a cover and an area yet.";
+    return;
+  }
+  // chart: average farm cover by day
+  const W = 340, H = 180, L = 38, R = 8, T = 10, B = 22;
+  const lo = Math.floor((Math.min(...pts.map((d) => d.afc)) - 50) / 250) * 250;
+  const hi = Math.ceil((Math.max(...pts.map((d) => d.afc)) + 50) / 250) * 250;
+  const x = (i) => L + (i / (f.days.length - 1)) * (W - L - R);
+  const y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  const step = hi - lo > 1500 ? 500 : 250;
+  for (let v = lo; v <= hi; v += step) {
+    svg.append(svgEl("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), class: "grid" }));
+    svg.append(svgEl("text", { x: L - 4, y: y(v) + 3, class: "ylab" }, v));
+  }
+  for (const i of [0, 7, 14, 21].filter((i) => i < f.days.length)) {
+    const anchor = i === 0 ? "start" : i === f.days.length - 1 ? "end" : "middle";
+    svg.append(svgEl("text", { x: x(i), y: H - 6, class: "xlab", "text-anchor": anchor }, i === 0 ? "today" : shortDate(f.days[i].date)));
+  }
+  svg.append(svgEl("polyline", { points: f.days.map((d, i) => `${x(i)},${y(d.afc)}`).join(" "), class: "afc" }));
+  f.days.forEach((d, i) => {
+    const dot = svgEl("circle", { cx: x(i), cy: y(d.afc), r: 2.2, class: d.shortfall ? "dot short" : "dot" });
+    dot.append(svgEl("title", {}, `${shortDate(d.date)}: ${d.afc} kg DM/ha${d.shortfall ? `, short ${kg(d.shortfall)} kg` : ""}`));
+    svg.append(dot);
+  });
+  const shortDays = f.days.filter((d) => d.shortfall);
+  $("feed-note").textContent = `Average cover over ${f.area} ha` +
+    (f.excluded.length ? ` (${f.excluded.length} paddock(s) without a cover or area left out: ${f.excluded.join(", ")})` : "") +
+    (shortDays.length ? `. Not enough feed from ${shortDate(shortDays[0].date)}: short ${kg(shortDays.reduce((s, d) => s + d.shortfall, 0))} kg DM over the 3 weeks.` : ".");
+  // day table
+  for (const d of f.days) {
+    const tr = document.createElement("tr");
+    if (d.shortfall) tr.className = "short";
+    const grazed = d.grazed.map((g) => g.name + (g.finished ? "" : "…")).join(", ") + (d.shortfall ? ` short ${kg(d.shortfall)}` : "");
+    for (const [text, cls] of [[d === f.days[0] ? "Today" : dayLabel(d.date)], [d.afc, "num"], [kg(d.available), "num"], [grazed]]) {
+      const td = document.createElement("td");
+      td.textContent = text;
+      if (cls) td.className = cls;
+      tr.append(td);
+    }
+    $("feed-rows").append(tr);
+  }
 }
 
 // ---------- grazing log ----------
