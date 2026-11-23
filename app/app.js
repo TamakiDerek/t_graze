@@ -125,6 +125,13 @@ $("feed-form").addEventListener("input", () => {
   renderFeed();
 });
 $("feed-form").addEventListener("submit", (e) => e.preventDefault());
+// Go / Done on the phone keyboard: keep the number and close the keyboard.
+$("feed-form").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
+    e.preventDefault();
+    e.target.blur();
+  }
+});
 
 const shortDate = (iso) => new Date(iso + "T12:00").toLocaleDateString("en-NZ", { day: "numeric", month: "short" });
 const dayLabel = (iso) => new Date(iso + "T12:00").toLocaleDateString("en-NZ", { weekday: "short", day: "numeric" });
