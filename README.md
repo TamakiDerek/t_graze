@@ -67,6 +67,7 @@ What's in Supabase (project setup is in `supabase/`: run `schema.sql`, then `pho
 | `cover_readings` | Every measured cover: `paddock`, `day`, `cover`, and what the app `predicted` for that paddock that day, grown from `start_cover` on `start_day` (`days_since_grazed`, `model`), and how it was made (`method`: `typed` or `photo`), for refitting the growth model. The newest also sets `paddocks.cover`/`cover_date` |
 | `photos` | Photo metadata: `file`, `taken_at`, `plus_code` (full 10-digit), `latitude`, `longitude`, `accuracy_m`, `altitude_m`, `storage_path` |
 | Storage bucket `photos` | The JPEGs (private), at `<farm_id>/<file>` |
+| `reference_photos` + bucket `reference` | "For comparison" pictures of known cover (`cover`, `kind` pre/residual, `view` boot/paddock, `source`, `page`), shared by every farm; setup in `supabase/reference.sql`. The images stay private in Supabase, not in this repo (they belong to their publishers) |
 
 Row-level security keeps each farm's rows to that farm's approved phones. An unapproved phone sees
 nothing, can't approve itself and can't join a farm. Phones can't delete photo files.
