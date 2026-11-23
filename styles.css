@@ -119,7 +119,7 @@ main { padding: 8px 12px; max-width: 640px; margin: 0 auto; }
 .paddocks td.name { overflow-wrap: anywhere; }
 .paddocks .edit-col { width: 40px; }
 .paddocks .tag { display: inline-block; min-width: 2.2em; margin-left: 3px; font-size: 0.7rem; text-align: left; color: var(--muted); }
-.paddocks .tag.v { color: var(--ok); font-weight: 600; }
+.paddocks .tag.m { color: var(--ok); font-weight: 600; }
 .paddocks .edit { border: 0; background: none; font-size: 1.05rem; padding: 4px 6px; border-radius: 6px; }
 .paddocks .empty { color: var(--muted); text-align: center; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }

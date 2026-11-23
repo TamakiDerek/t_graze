@@ -138,8 +138,8 @@ function renderPaddocks() {
     } else {
       const tag = document.createElement("span");
       tag.className = `tag ${r.coverKind}`;
-      tag.textContent = r.coverKind === "v" ? `v${r.coverAge}` : "e";
-      tag.title = r.coverKind === "v" ? `Measured ${r.coverAge} day(s) ago` : "Estimated";
+      tag.textContent = r.coverKind === "m" ? `m${r.coverAge}` : "e";
+      tag.title = r.coverKind === "m" ? `Measured ${r.coverFrom.cover} ${r.coverAge} day(s) ago, grown since` : "Estimated";
       cells[2].append(String(r.cover), tag);
     }
     cells[3].textContent = num(r.interval);
@@ -206,7 +206,7 @@ $("edit-form").addEventListener("submit", (event) => {
       if (coverText) {
         const reading = measureCover(store, name, coverText, new Date());
         cloud.coverMeasured(reading);
-        done.push(`Cover ${reading.cover} saved for ${name}` + (reading.predicted != null ? ` (estimate was ${reading.predicted})` : ""));
+        done.push(`Cover ${reading.cover} saved for ${name}` + (reading.predicted != null ? ` (was showing ${reading.predicted})` : ""));
       }
       if (!done.length) return;
       toast(done.join(". "));

@@ -51,10 +51,11 @@ const dayNumber = (iso) => {
   const [y, m, d] = iso.split("-").map(Number);
   return Math.round(Date.UTC(y, m - 1, d) / DAY_MS);
 };
+const dayIso = (n) => new Date(n * DAY_MS).toISOString().slice(0, 10);
 
 // Cover estimate until real measurements exist: 1500 kg DM/ha the day after grazing, then each day
-// it grows by GROWTH_CURVE's rate for the cover it has reached. A measured ("verified") cover replaces
-// the estimate until the paddock is next grazed.
+// it grows by GROWTH_CURVE's rate for the cover it has reached. A measured cover restarts it: from the
+// measurement day it grows the same way from the measured value, until the paddock is next grazed.
 export const COVER_AFTER_GRAZING = 1500;
 
 // Daily growth (kg DM/ha/day) by current cover (kg DM/ha): [cover, growth] points, straight lines
@@ -69,7 +70,7 @@ export const GROWTH_CURVE = [
 
 // Saved with every measured cover, so readings can be matched to the estimate that predicted them.
 // Change it whenever GROWTH_CURVE or the estimate rule changes.
-export const COVER_MODEL = "curve-2026-11-23";
+export const COVER_MODEL = "curve-2026-11-23-m"; // -m: measured covers grow too
 
 /** Growth per day at a given cover, interpolated from a [cover, growth] table sorted by cover. */
 export function growthRate(cover, curve = GROWTH_CURVE) {
@@ -84,11 +85,16 @@ export function growthRate(cover, curve = GROWTH_CURVE) {
   return curve[curve.length - 1][1];
 }
 
-/** Estimated cover N days after grazing (day 0 and day 1 = the residual), growing a day at a time. */
-export function estimateCover(daysSinceGrazed, curve = GROWTH_CURVE) {
-  let cover = COVER_AFTER_GRAZING;
-  for (let d = 1; d < daysSinceGrazed; d++) cover += growthRate(cover, curve);
+/** Cover after growing for a number of days from a starting cover, a day at a time. */
+export function growCover(startCover, days, curve = GROWTH_CURVE) {
+  let cover = startCover;
+  for (let d = 0; d < days; d++) cover += growthRate(cover, curve);
   return Math.round(cover);
+}
+
+/** Estimated cover N days after grazing (day 0 and day 1 = the residual). */
+export function estimateCover(daysSinceGrazed, curve = GROWTH_CURVE) {
+  return growCover(COVER_AFTER_GRAZING, Math.max(0, daysSinceGrazed - 1), curve);
 }
 // Entries up to this many days apart count as one continuing grazing, not a new one.
 export const GRAZING_GAP_DAYS = 3;
@@ -99,10 +105,11 @@ export const GRAZING_GAP_DAYS = 3;
  * (a continuation), so e.g. Nov 21 pm + Nov 24 am is one visit starting Nov 21.
  * - lastDays: days from the latest entry to today (0 = today)
  * - interval: days between the start of the previous visit and the start of the latest one
- * - cover / coverKind / coverAge:
- *     "v" = verified: measured on a day after the last grazing; coverAge = days since measured
- *     "e" = estimated from the rule above (on the grazing day itself it's the residual)
+ * - cover / coverKind / coverAge / coverFrom:
+ *     "m" = measured on a day after the last grazing, grown since; coverAge = days since measured
+ *     "e" = estimated from the residual after grazing (on the grazing day itself it's the residual)
  *     null = never grazed and never measured
+ *     coverFrom = { cover, date } the figure grew from (the measurement, or the residual the day after grazing)
  */
 export function paddockStats(store, now) {
   const today = dayNumber(isoDate(now));
@@ -121,19 +128,19 @@ export function paddockStats(store, now) {
     const lastGrazed = list.length ? list[list.length - 1] : null;
     const lastDays = lastGrazed == null ? null : today - lastGrazed;
 
-    let cover = null;
+    let start = null; // where today's cover grows from
     let coverKind = null;
-    let coverAge = null;
     const measured = store.data.covers?.[name];
     const measuredDay = measured?.date ? dayNumber(measured.date) : null;
     if (Number.isFinite(measured?.value) && measuredDay != null && (lastGrazed == null || measuredDay > lastGrazed)) {
-      cover = measured.value;
-      coverKind = "v";
-      coverAge = Math.max(0, today - measuredDay);
-    } else if (lastDays != null) {
-      cover = estimateCover(lastDays);
+      start = { cover: measured.value, day: measuredDay };
+      coverKind = "m";
+    } else if (lastGrazed != null) {
+      start = { cover: COVER_AFTER_GRAZING, day: lastGrazed + 1 };
       coverKind = "e";
     }
+    const cover = start ? growCover(start.cover, Math.max(0, today - start.day)) : null;
+    const coverAge = coverKind === "m" ? Math.max(0, today - start.day) : null;
 
     return {
       name,
@@ -142,14 +149,15 @@ export function paddockStats(store, now) {
       cover,
       coverKind,
       coverAge,
+      coverFrom: start ? { cover: start.cover, date: dayIso(start.day) } : null,
     };
   });
 }
 
 /**
- * Record a measured cover for a paddock today. It shows as "v" until the paddock is next grazed.
- * Returns the reading to upload: the measurement plus what the estimate predicted for the same day,
- * so the growth model can later be checked and refitted against real data.
+ * Record a measured cover for a paddock today. It shows as "m<days>", growing, until the paddock is next grazed.
+ * Returns the reading to upload: the measurement plus what the app was showing for the same day and
+ * where that figure grew from, so the growth model can later be checked and refitted against real data.
  */
 export function measureCover(store, name, value, now) {
   const cover = Math.round(Number(value));
@@ -164,7 +172,9 @@ export function measureCover(store, name, value, now) {
     paddock: name,
     day,
     cover,
-    predicted: grazed ? estimateCover(stat.lastDays) : null,
+    predicted: stat?.cover ?? null,
+    start_cover: stat?.coverFrom?.cover ?? null,
+    start_day: stat?.coverFrom?.date ?? null,
     days_since_grazed: grazed ? stat.lastDays : null,
     model: COVER_MODEL,
   };
