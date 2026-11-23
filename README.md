@@ -10,6 +10,10 @@ Android Chrome and has two jobs:
   Each photo is saved to the phone's **Download** folder as `YYYY_MMDD_<short plus code>.jpg`
   (e.g. `2026_1117_8R9C+W2.jpg`). A second photo with the same name gets `_2`, `_3` and so on. The
   GPS position, altitude, accuracy and capture time are written into the photo's EXIF.
+  📷 opens the app's own camera with a guide for a **standard photo**: phone at 1 m (belt height), no shadow,
+  step forward so the toe is at the bottom, tilted forward about 35° from straight down (the tilt meter goes
+  green at 28-42°, level side to side). The tilt is written into the EXIF description and kept with the photo.
+  **Phone camera** on that screen falls back to the phone's own camera (no guide, no tilt).
 
 The Paddocks tab is a sortable table (tap a heading; tap again to reverse): **Last grazed** (days ago),
 **Cover** (kg DM/ha: an estimate tagged `e`: 1500 the day after grazing, then growing each day at a rate that depends on the cover reached, from `GROWTH_CURVE` in `app/model.js` (currently 50/day at 2000–2200, 2.5 less per 100 kg either side, minimum 15), or, once measured

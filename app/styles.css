@@ -237,3 +237,38 @@ h2 { font-size: 1rem; margin: 24px 0 4px; }
 .paddocks tr.out .pname-toggle { background: none; color: var(--muted); font-weight: 400; text-decoration: line-through; border-style: dashed; }
 .paddocks tr.out td { color: var(--muted); }
 .paddocks .out-tag { margin-left: 4px; font-style: italic; color: var(--muted); }
+
+/* App camera: preview with a standard-photo guide (tilt meter, rules, where the toe goes) */
+.cam {
+  width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0;
+  background: #000; color: #fff; display: none; flex-direction: column;
+}
+.cam[open] { display: flex; }
+.cam::backdrop { background: #000; }
+.cam-view { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.cam-view video { display: block; max-width: 100%; max-height: 100%; }
+.cam-guide { position: absolute; inset: 0; pointer-events: none; }
+.cam-tilt { position: absolute; top: 8px; left: 12px; right: 12px; padding: 8px 10px; border-radius: 10px; background: rgba(0, 0, 0, 0.55); }
+.cam-read { font-size: 1.05rem; }
+.cam-read b { font-size: 1.6rem; font-variant-numeric: tabular-nums; margin-right: 6px; }
+.cam-meter { position: relative; height: 12px; margin-top: 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.25); }
+.cam-band { position: absolute; top: 0; bottom: 0; border-radius: 6px; background: rgba(110, 231, 160, 0.55); }
+.cam-needle { position: absolute; top: -4px; bottom: -4px; width: 4px; margin-left: -2px; border-radius: 2px; background: #fff; }
+.cam.good .cam-needle { background: #6ee7a0; }
+.cam.good .cam-read { color: #6ee7a0; }
+.cam-rules { position: absolute; left: 12px; top: 96px; margin: 0; padding: 6px 10px 6px 28px; border-radius: 10px; background: rgba(0, 0, 0, 0.45); font-size: 0.85rem; }
+.cam-frame { position: absolute; pointer-events: none; }
+.cam-boot {
+  position: absolute; left: 35%; right: 35%; bottom: 3%; height: 16%; border: 3px dashed rgba(255, 255, 255, 0.85);
+  border-radius: 40% 40% 12px 12px; display: flex; align-items: flex-start; justify-content: center; padding-top: 6px;
+  font-size: 0.85rem; text-shadow: 0 1px 2px #000;
+}
+.cam-error { position: absolute; left: 16px; right: 16px; top: 40%; padding: 12px; border-radius: 10px; background: rgba(154, 52, 18, 0.9); }
+.cam-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+}
+.cam-side { flex: 1; padding: 10px; border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 8px; background: none; color: #fff; }
+.cam-shoot { flex: none; width: 76px; height: 76px; border-radius: 50%; border: 5px solid #fff; background: #9aa597; }
+.cam-shoot.good { background: #6ee7a0; }
+.cam-shoot:disabled { opacity: 0.4; }

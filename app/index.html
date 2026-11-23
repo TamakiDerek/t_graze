@@ -37,6 +37,9 @@
 
     <section id="tab-photos" class="tab" hidden>
       <p class="hint">Photos save to the phone's <b>Download</b> folder, named by date and plus code, with the GPS position inside the photo.</p>
+      <p class="hint"><b>Taking a standard photo:</b> hold the phone at 1 m (about your belt), keep your shadow out of the picture,
+        step forward so your toe is at the bottom, and tilt the phone forward until the bar goes green
+        (about 35° from straight down). The tilt is saved with the photo.</p>
       <ul id="photo-list" class="list"></ul>
     </section>
 
@@ -143,6 +146,29 @@
 
   <button id="camera" class="camera" type="button" disabled aria-label="Take paddock photo">📷</button>
   <input id="camera-input" type="file" accept="image/*" capture="environment" hidden>
+  <dialog id="cam" class="cam" aria-label="Paddock photo">
+    <div class="cam-view" id="cam-view">
+      <video id="cam-video" playsinline muted autoplay></video>
+      <div class="cam-guide" aria-hidden="true">
+        <div class="cam-tilt">
+          <div class="cam-read"><b id="cam-angle">--°</b> <span id="cam-say">Starting the camera…</span></div>
+          <div class="cam-meter"><div class="cam-band" id="cam-band"></div><div class="cam-needle" id="cam-needle"></div></div>
+        </div>
+        <ol class="cam-rules">
+          <li>Phone at 1 m (your belt)</li>
+          <li>No shadow in the picture</li>
+          <li>Step forward: toe at the bottom</li>
+        </ol>
+      </div>
+      <div class="cam-frame" id="cam-frame" aria-hidden="true"><div class="cam-boot">toe here</div></div>
+      <p id="cam-error" class="cam-error" hidden></p>
+    </div>
+    <div class="cam-bar">
+      <button id="cam-cancel" type="button" class="cam-side">Cancel</button>
+      <button id="cam-shoot" type="button" class="cam-shoot" aria-label="Take the photo"></button>
+      <button id="cam-native" type="button" class="cam-side">Phone camera</button>
+    </div>
+  </dialog>
   <div id="toast" class="toast" role="status" hidden></div>
   <datalist id="paddock-names"></datalist>
 
