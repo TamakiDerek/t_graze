@@ -74,6 +74,7 @@ comes back from the database on the next sync (the last 120 days of the log).
 | `app/config.js` | Supabase project URL and publishable key (public by design) |
 | `app/sw.js` | Service worker: works offline, refreshes from the network when there's signal |
 | `supabase/` | Database setup SQL |
+| `docs/growth-model-plan.md` | Plan for seasonal, moisture and calibration factors in the cover estimate |
 | `tools/serve.js` | Local static server for testing |
 | `test/` | `node --test` unit tests |
 
