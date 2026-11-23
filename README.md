@@ -20,7 +20,7 @@ between the starts of the last two grazings; entries up to 3 days apart count as
 (saved with the estimate it replaces), renames a paddock (the log follows) or removes it (only if unused). The **Analysis** tab charts every paddock with a known cover, highest first; tap a paddock's name to take it out of the
 grazing rotation (e.g. for hay) or put it back: a bar from 1000 to 4000 kg DM/ha (solid = measured, pale = estimate) and the feed available,
 `(cover - 1500) × ha` kg DM (never below 0), with the farm total. Below it, **Feed ahead** forecasts the average farm cover for 3 weeks, one bar per day, over the paddocks in the rotation: enter cows and
-kg DM/cow/day (default 160 × 20, remembered on the phone); each day every paddock grows on the curve, then
+kg DM/cow/day (a farm setting shared by every phone, `farms.herd_cows`/`intake_kg`; 160 × 20 until someone changes it); each day every paddock grows on the curve, then
 the herd eats from the highest paddock down to 1500 before moving on. A day table lists the paddocks grazed and
 any shortfall.
 
@@ -56,7 +56,7 @@ What's in Supabase (project setup is in `supabase/`: run `schema.sql`, then `pho
 
 | Table | Holds |
 |-------|-------|
-| `farms`, `farm_members` | Farms and which phones (users) belong to each |
+| `farms`, `farm_members` | Farms (with the herd size and intake for the feed ahead) and which phones (users) belong to each |
 | `devices` | Registered phones: code, owner name and email, when registered and approved |
 | `paddocks` | Paddock names per farm, size (`area_ha`), whether it's `in_rotation` (false = kept for hay etc.) and latest measured cover |
 | `grazing_log` | One row per farm per half-day: `day`, `half`, `paddock_1`, `paddock_2` |

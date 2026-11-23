@@ -10,6 +10,11 @@ create table if not exists public.farms (
   created_at timestamptz not null default now()
 );
 
+-- Farm-wide feed settings for the Analysis feed ahead (every phone on the farm uses the same numbers).
+alter table public.farms add column if not exists herd_cows integer check (herd_cows is null or herd_cows >= 0);
+alter table public.farms add column if not exists intake_kg numeric(5,1) check (intake_kg is null or intake_kg >= 0);
+alter table public.farms add column if not exists feed_updated_at timestamptz;
+
 create table if not exists public.farm_members (
   farm_id uuid not null references public.farms(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -81,6 +86,13 @@ alter table public.photos enable row level security;
 drop policy if exists "members read their farms" on public.farms;
 create policy "members read their farms" on public.farms
   for select to authenticated using (public.is_farm_member(id));
+
+-- Members may change only the feed settings of their own farm (not its name).
+revoke update on public.farms from anon, authenticated;
+grant update (herd_cows, intake_kg, feed_updated_at) on public.farms to authenticated;
+drop policy if exists "members set feed settings" on public.farms;
+create policy "members set feed settings" on public.farms
+  for update to authenticated using (public.is_farm_member(id)) with check (public.is_farm_member(id));
 
 drop policy if exists "users read their memberships" on public.farm_members;
 create policy "users read their memberships" on public.farm_members

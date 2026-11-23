@@ -4,6 +4,16 @@
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js";
 
 const STATE_KEY = "t_graze_sync";
+// Herd size and intake for the feed ahead. Kept here for offline use; the farm's values win on sync.
+export const FEED_KEY = "t_graze_feed";
+export const FEED_DEFAULTS = { cows: 160, perCow: 20 };
+export function feedSettings() {
+  try {
+    return { ...FEED_DEFAULTS, ...JSON.parse(localStorage.getItem(FEED_KEY) || "{}") };
+  } catch {
+    return { ...FEED_DEFAULTS };
+  }
+}
 const PULL_DAYS = 120;
 
 // ---------- photo outbox (IndexedDB: photo blobs are too big for localStorage) ----------
@@ -109,6 +119,13 @@ export class Cloud {
     this.state.coverReadings.push(reading);
     this.saveState();
     this.soon();
+  }
+  /** Herd size / intake changed on this phone: shared with the whole farm on the next sync. */
+  feedChanged(cows, perCow) {
+    localStorage.setItem(FEED_KEY, JSON.stringify({ cows, perCow }));
+    this.state.feedDirty = true;
+    this.saveState();
+    this.soon(3000);
   }
   async photoTaken(meta, blob) {
     await queuePhoto({ file: meta.file, meta, blob });
@@ -252,6 +269,7 @@ export class Cloud {
       ...(this.store.area(name) != null ? [{ op: "area", name, area: this.store.area(name) }] : []),
       ...(this.store.isOut(name) ? [{ op: "rotation", name, inRotation: false }] : []),
     ]);
+    this.state.feedDirty = Boolean(localStorage.getItem(FEED_KEY));
     this.saveState();
     return true;
   }
@@ -271,6 +289,7 @@ export class Cloud {
       await this.pushPaddocks();
       await this.pushLog();
       await this.pushCovers();
+      await this.pushFeed();
       await this.pushPhotos();
       await this.pull();
       this.state.lastSync = new Date().toISOString();
@@ -359,6 +378,18 @@ export class Cloud {
     this.saveState();
   }
 
+  async pushFeed() {
+    if (!this.state.feedDirty) return;
+    const { cows, perCow } = feedSettings();
+    await this.request(`/rest/v1/farms?id=eq.${this.state.farmId}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: { herd_cows: cows, intake_kg: perCow, feed_updated_at: new Date().toISOString() },
+    });
+    this.state.feedDirty = false;
+    this.saveState();
+  }
+
   async pushPhotos() {
     const farm = this.state.farmId;
     for (const { file, meta, blob } of await pendingPhotos()) {
@@ -388,10 +419,19 @@ export class Cloud {
   async pull() {
     const farm = this.state.farmId;
     const since = new Date(Date.now() - PULL_DAYS * 86_400_000).toISOString().slice(0, 10);
-    const [paddocks, rows] = await Promise.all([
+    const [paddocks, rows, farms] = await Promise.all([
       this.request(`/rest/v1/paddocks?select=name,cover,cover_date,area_ha,in_rotation&farm_id=eq.${farm}`),
       this.request(`/rest/v1/grazing_log?select=day,half,paddock_1,paddock_2&farm_id=eq.${farm}&day=gte.${since}`),
+      this.request(`/rest/v1/farms?select=herd_cows,intake_kg&id=eq.${farm}`),
     ]);
+    // Farm-wide herd size and intake. If the farm has none yet, this phone's own numbers (if it
+    // ever changed them) become the farm's on the next sync.
+    const f = farms[0];
+    if (f && f.herd_cows != null && f.intake_kg != null) {
+      if (!this.state.feedDirty) localStorage.setItem(FEED_KEY, JSON.stringify({ cows: f.herd_cows, perCow: Number(f.intake_kg) }));
+    } else if (localStorage.getItem(FEED_KEY)) {
+      this.state.feedDirty = true;
+    }
     const data = this.store.data;
     const pendingNames = new Set(this.state.paddockOps.flatMap((o) => [o.name, o.from, o.to]));
     data.covers = {};
