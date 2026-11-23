@@ -10,7 +10,8 @@ Android Chrome and has two jobs:
   (Esri World Imagery) with each photo drawn as its plus-code square (about 14 × 14 m) and labelled with
   the cover estimated from it (`photos.cover_estimate`, yellow) or accepted (green, with the paddock). Click
   one to see the photo, choose the paddock and accept or change the cover: that sets `photos.paddock` /
-  `cover_accepted` and adds a `cover_readings` row with method `photo` for that paddock on the photo's day.
+  `cover_accepted` and adds a `cover_readings` row with method `photo` for that paddock on the photo's day. Several photos accepted for
+  the same paddock on the same day are averaged into that one reading (`photoDayCover`).
   The laptop signs in and gets approved like a phone.
 - **Paddock photos**: the 📷 button stays disabled until there is a GPS fix less than a minute old.
   Each photo is saved to the phone's **Download** folder as `YYYY_MMDD_<short plus code>.jpg`

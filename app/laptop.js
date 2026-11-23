@@ -1,7 +1,7 @@
 // Laptop side: the farm's photos on an aerial map, each as its plus-code square with the cover
 // estimated from it. Click one, say which paddock it is, and accept (or change) the cover: that saves
 // the paddock against the photo and adds a cover reading (method "photo") for that paddock and day.
-import { Store, measureCover, isoDate } from "./model.js";
+import { Store, measureCover, isoDate, photoDayCover } from "./model.js";
 import { Cloud } from "./cloud.js";
 import { decode } from "./pluscode.js";
 import { SUPABASE_URL } from "./config.js";
@@ -46,9 +46,12 @@ async function start() {
   await loadPhotos();
 }
 
-async function loadPhotos() {
+async function fetchPhotos() {
   photos = await cloud.request(
     `/rest/v1/photos?select=file,taken_at,plus_code,latitude,longitude,accuracy_m,storage_path,paddock,cover_estimate,estimate_by,cover_accepted,accepted_at&farm_id=eq.${cloud.state.farmId}&order=taken_at.desc`);
+}
+async function loadPhotos() {
+  await fetchPhotos();
   drawMap();
   drawList();
 }
@@ -116,8 +119,12 @@ async function choose(file) {
   $("pick-cover").value = coverOf(chosen) ?? "";
   $("pick-est").textContent = chosen.cover_estimate == null ? "No estimate yet: type the cover."
     : `Estimated ${chosen.cover_estimate} (${chosen.estimate_by ?? "estimate"}).`;
+  const sameDay = chosen.paddock ? photoDayCover(photos, chosen.paddock, isoDate(new Date(chosen.taken_at))) : null;
   $("pick-note").textContent = chosen.cover_accepted != null
-    ? `Accepted ${chosen.cover_accepted} for ${chosen.paddock} on ${when(chosen.accepted_at)}. Accepting again replaces it.` : "";
+    ? `Accepted ${chosen.cover_accepted} for ${chosen.paddock} on ${when(chosen.accepted_at)}.` +
+      (sameDay?.count > 1 ? ` With the other ${sameDay.count - 1} photo(s) of ${chosen.paddock} that day, its reading is the average: ${sameDay.cover}.` : "") +
+      " Accepting again replaces it."
+    : "Photos of the same paddock on the same day are averaged into one reading.";
   const sq = squares.get(file);
   if (sq) map.panTo(sq.getBounds().getCenter());
   const img = $("pick-img");
@@ -145,21 +152,38 @@ $("pick-form").addEventListener("submit", async (event) => {
   const paddock = $("pick-paddock").value;
   const cover = Math.round(Number($("pick-cover").value));
   const taken = new Date(chosen.taken_at);
+  const day = isoDate(taken);
+  const file = chosen.file;
+  const before = chosen.paddock && chosen.cover_accepted != null ? chosen.paddock : null;
   try {
-    // Same path as a cover typed on a phone, but method "photo" and the photo's own day.
-    const reading = measureCover(store, paddock, cover, taken, "photo");
-    cloud.coverMeasured(reading);
     const accepted_at = new Date().toISOString();
-    await cloud.request(`/rest/v1/photos?farm_id=eq.${cloud.state.farmId}&file=eq.${encodeURIComponent(chosen.file)}`, {
+    await cloud.request(`/rest/v1/photos?farm_id=eq.${cloud.state.farmId}&file=eq.${encodeURIComponent(file)}`, {
       method: "PATCH", headers: { Prefer: "return=minimal" },
       body: { paddock, cover_accepted: cover, accepted_at },
     });
+    await fetchPhotos(); // fresh, so photos accepted on the other laptop count too
+    // One cover reading per paddock per day: the average of every photo accepted for it that day.
+    // Same path as a cover typed on a phone, but method "photo" and the photos' own day.
+    const saveDay = (name) => {
+      const avg = photoDayCover(photos, name, day);
+      if (avg) cloud.coverMeasured(measureCover(store, name, avg.cover, taken, "photo"));
+      return avg;
+    };
+    const avg = saveDay(paddock);
+    let moved = "";
+    if (before && before !== paddock) {
+      const left = saveDay(before);
+      moved = left
+        ? ` ${before} is now ${left.cover} from ${left.count} photo(s).`
+        : ` ${before} keeps its earlier reading for that day: re-measure it if that's wrong.`;
+    }
     await cloud.sync();
-    Object.assign(chosen, { paddock, cover_accepted: cover, accepted_at });
-    toast(`${paddock}: ${cover} on ${isoDate(taken)} saved (photo)`);
+    toast(avg.count > 1
+      ? `${paddock} on ${day}: average of ${avg.count} photos = ${avg.cover}.${moved}`
+      : `${paddock}: ${avg.cover} on ${day} saved (photo).${moved}`);
     drawMap(false);
     drawList();
-    choose(chosen.file);
+    choose(file);
   } catch (err) {
     toast(`Not saved: ${err.message}`, true);
   }

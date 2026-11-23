@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store, slots, photoName, logCsv, paddockStats, sortPaddockStats, growthRate, estimateCover, measureCover, COVER_MODEL, growCover, coverRanking, forecastFeed } from "../app/model.js";
+import { Store, slots, photoName, logCsv, paddockStats, sortPaddockStats, growthRate, estimateCover, measureCover, COVER_MODEL, growCover, coverRanking, forecastFeed, photoDayCover } from "../app/model.js";
 
 const memory = () => {
   const m = new Map();
@@ -285,4 +285,19 @@ test("cover method: typed readings tag m, photo readings tag p", () => {
   assert.deepEqual([by.P.coverKind, by.P.coverAge], ["p", 5]);
   s.data.covers.T = { value: 2000, date: "2026-11-21" }; // older saved covers have no method: treated as typed
   assert.equal(paddockStats(s, later).find((r) => r.name === "T").coverKind, "m");
+});
+
+test("photoDayCover averages the accepted photos for one paddock on one day", () => {
+  const at = (h) => new Date(2026, 10, 24, h, 0).toISOString();
+  const photos = [
+    { paddock: "B02", cover_accepted: 2400, taken_at: at(8) },
+    { paddock: "B02", cover_accepted: 2700, taken_at: at(9) },
+    { paddock: "B02", cover_accepted: 2550, taken_at: at(10) },
+    { paddock: "B02", cover_accepted: null, taken_at: at(11) }, // not accepted yet: left out
+    { paddock: "C03", cover_accepted: 3000, taken_at: at(8) }, // other paddock
+    { paddock: "B02", cover_accepted: 1800, taken_at: new Date(2026, 10, 25, 8).toISOString() }, // other day
+  ];
+  assert.deepEqual(photoDayCover(photos, "B02", "2026-11-24"), { cover: 2550, count: 3 });
+  assert.deepEqual(photoDayCover(photos, "B02", "2026-11-25"), { cover: 1800, count: 1 });
+  assert.equal(photoDayCover(photos, "A01", "2026-11-24"), null);
 });
