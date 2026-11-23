@@ -52,10 +52,40 @@ const dayNumber = (iso) => {
   return Math.round(Date.UTC(y, m - 1, d) / DAY_MS);
 };
 
-// Broad cover rule until real measurements exist: 1500 kg DM/ha the day after grazing,
-// growing 100 a day. A measured ("verified") cover replaces it until the paddock is next grazed.
+// Cover estimate until real measurements exist: 1500 kg DM/ha the day after grazing, then each day
+// it grows by GROWTH_CURVE's rate for the cover it has reached. A measured ("verified") cover replaces
+// the estimate until the paddock is next grazed.
 export const COVER_AFTER_GRAZING = 1500;
-export const COVER_GROWTH_PER_DAY = 100;
+
+// Daily growth (kg DM/ha/day) by current cover (kg DM/ha): [cover, growth] points, straight lines
+// between them, flat beyond the ends. Replace with a finer table as trials refine it.
+// Now: 100/day from 2000 to 2200, 5 less per 100 kg either side, never below 30.
+export const GROWTH_CURVE = [
+  [600, 30],
+  [2000, 100],
+  [2200, 100],
+  [3600, 30],
+];
+
+/** Growth per day at a given cover, interpolated from a [cover, growth] table sorted by cover. */
+export function growthRate(cover, curve = GROWTH_CURVE) {
+  if (cover <= curve[0][0]) return curve[0][1];
+  for (let i = 1; i < curve.length; i++) {
+    const [c1, g1] = curve[i];
+    if (cover <= c1) {
+      const [c0, g0] = curve[i - 1];
+      return g0 + ((g1 - g0) * (cover - c0)) / (c1 - c0);
+    }
+  }
+  return curve[curve.length - 1][1];
+}
+
+/** Estimated cover N days after grazing (day 0 and day 1 = the residual), growing a day at a time. */
+export function estimateCover(daysSinceGrazed, curve = GROWTH_CURVE) {
+  let cover = COVER_AFTER_GRAZING;
+  for (let d = 1; d < daysSinceGrazed; d++) cover += growthRate(cover, curve);
+  return Math.round(cover);
+}
 // Entries up to this many days apart count as one continuing grazing, not a new one.
 export const GRAZING_GAP_DAYS = 3;
 
@@ -67,7 +97,7 @@ export const GRAZING_GAP_DAYS = 3;
  * - interval: days between the start of the previous visit and the start of the latest one
  * - cover / coverKind / coverAge:
  *     "v" = verified: measured on a day after the last grazing; coverAge = days since measured
- *     "e" = estimated from the rule above (on the grazing day itself it's the 1500 residual)
+ *     "e" = estimated from the rule above (on the grazing day itself it's the residual)
  *     null = never grazed and never measured
  */
 export function paddockStats(store, now) {
@@ -97,7 +127,7 @@ export function paddockStats(store, now) {
       coverKind = "v";
       coverAge = Math.max(0, today - measuredDay);
     } else if (lastDays != null) {
-      cover = COVER_AFTER_GRAZING + COVER_GROWTH_PER_DAY * Math.max(0, lastDays - 1);
+      cover = estimateCover(lastDays);
       coverKind = "e";
     }
 
