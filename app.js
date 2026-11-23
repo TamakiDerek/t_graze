@@ -1,7 +1,7 @@
 import { Store, slots, currentHalf, isoDate, photoName, logCsv, photosCsv, paddockStats, sortPaddockStats, SORT_DEFAULTS, measureCover, coverRanking, forecastFeed } from "./model.js";
 import { encode, shortCode } from "./pluscode.js";
 import { insertExif } from "./exif.js";
-import { Cloud, pendingPhotoFiles } from "./cloud.js";
+import { Cloud, pendingPhotoFiles, feedSettings } from "./cloud.js";
 
 const store = new Store(localStorage);
 let wasBusy = false;
@@ -106,22 +106,18 @@ $("cover-chart").addEventListener("click", (event) => {
   renderAnalysis();
 });
 
-// Feed ahead: herd size and intake are remembered on this phone.
-const FEED_KEY = "t_graze_feed";
-const FEED_DEFAULTS = { cows: 160, perCow: 20 };
-function feedSettings() {
-  try {
-    return { ...FEED_DEFAULTS, ...JSON.parse(localStorage.getItem(FEED_KEY) || "{}") };
-  } catch {
-    return { ...FEED_DEFAULTS };
+// Feed ahead: herd size and intake are a farm setting, shared by every phone (saved here for offline use).
+function showFeedInputs() {
+  const { cows, perCow } = feedSettings();
+  for (const [id, v] of [["feed-cows", cows], ["feed-per", perCow]]) {
+    if (document.activeElement !== $(id)) $(id).value = v;
   }
 }
-$("feed-cows").value = feedSettings().cows;
-$("feed-per").value = feedSettings().perCow;
+showFeedInputs();
 $("feed-form").addEventListener("input", () => {
   const cows = Number($("feed-cows").value);
   const perCow = Number($("feed-per").value);
-  if (cows >= 0 && perCow >= 0) localStorage.setItem(FEED_KEY, JSON.stringify({ cows, perCow }));
+  if ($("feed-cows").value !== "" && $("feed-per").value !== "" && cows >= 0 && perCow >= 0) cloud.feedChanged(cows, perCow);
   renderFeed();
 });
 $("feed-form").addEventListener("submit", (e) => e.preventDefault());
@@ -138,6 +134,7 @@ const dayLabel = (iso) => new Date(iso + "T12:00").toLocaleDateString("en-NZ", {
 
 /** Feed ahead, drawn like the cover chart: one row per day, a bar for the average farm cover. */
 function renderFeed() {
+  showFeedInputs();
   const { cows, perCow } = feedSettings();
   const f = forecastFeed(store, new Date(), { cows, perCow });
   $("feed-demand").textContent = `= ${kg(f.demand)} kg DM a day`;
