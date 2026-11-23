@@ -212,3 +212,12 @@ h2 { font-size: 1rem; margin: 24px 0 4px; }
 .chart.feed .day { white-space: nowrap; }
 .chart.feed .grazed { font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chart.feed .chart-row.short { color: var(--warn); }
+
+/* Paddocks table: the name is a button that takes the paddock in or out of the rotation */
+.pname-toggle {
+  padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--card);
+  color: var(--ink); font: inherit; font-weight: 600; text-align: left; overflow-wrap: anywhere; max-width: 100%;
+}
+.paddocks tr.out .pname-toggle { background: none; color: var(--muted); font-weight: 400; text-decoration: line-through; border-style: dashed; }
+.paddocks tr.out td { color: var(--muted); }
+.paddocks .out-tag { margin-left: 4px; font-style: italic; color: var(--muted); }
