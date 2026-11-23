@@ -192,6 +192,17 @@ export function measureCover(store, name, value, now, method = "typed") {
   };
 }
 
+/**
+ * Photos accepted for the same paddock on the same day are averaged into one cover reading.
+ * photos: rows with paddock, cover_accepted and taken_at. Returns { cover, count } or null if none.
+ */
+export function photoDayCover(photos, paddock, day) {
+  const same = photos.filter((p) => p.paddock === paddock && p.cover_accepted != null && isoDate(new Date(p.taken_at)) === day);
+  if (!same.length) return null;
+  const total = same.reduce((sum, p) => sum + p.cover_accepted, 0);
+  return { cover: Math.round(total / same.length), count: same.length };
+}
+
 // Paddocks are grazed down to this; above it is feed the cows can eat.
 export const GRAZE_TO = COVER_AFTER_GRAZING;
 
