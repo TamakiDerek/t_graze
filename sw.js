@@ -10,6 +10,7 @@ const SHELL = [
   "model.js",
   "pluscode.js",
   "exif.js",
+  "photo-size.js",
   "cloud.js",
   "config.js",
   "manifest.webmanifest",
