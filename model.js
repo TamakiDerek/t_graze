@@ -67,6 +67,10 @@ export const GROWTH_CURVE = [
   [3600, 30],
 ];
 
+// Saved with every measured cover, so readings can be matched to the estimate that predicted them.
+// Change it whenever GROWTH_CURVE or the estimate rule changes.
+export const COVER_MODEL = "curve-2026-11-23";
+
 /** Growth per day at a given cover, interpolated from a [cover, growth] table sorted by cover. */
 export function growthRate(cover, curve = GROWTH_CURVE) {
   if (cover <= curve[0][0]) return curve[0][1];
@@ -140,6 +144,30 @@ export function paddockStats(store, now) {
       coverAge,
     };
   });
+}
+
+/**
+ * Record a measured cover for a paddock today. It shows as "v" until the paddock is next grazed.
+ * Returns the reading to upload: the measurement plus what the estimate predicted for the same day,
+ * so the growth model can later be checked and refitted against real data.
+ */
+export function measureCover(store, name, value, now) {
+  const cover = Math.round(Number(value));
+  if (!Number.isFinite(cover) || cover < 0 || cover > 10000) throw new Error("Cover must be a number from 0 to 10000");
+  const stat = paddockStats(store, now).find((r) => r.name === name);
+  const grazed = stat?.lastDays != null;
+  const day = isoDate(now);
+  store.data.covers ??= {};
+  store.data.covers[name] = { value: cover, date: day };
+  store.save();
+  return {
+    paddock: name,
+    day,
+    cover,
+    predicted: grazed ? estimateCover(stat.lastDays) : null,
+    days_since_grazed: grazed ? stat.lastDays : null,
+    model: COVER_MODEL,
+  };
 }
 
 /** Default direction when a column is first tapped: longest since grazed first, cover largest first, interval shortest first. */

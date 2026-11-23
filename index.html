@@ -56,11 +56,13 @@
         </thead>
         <tbody id="paddock-rows"></tbody>
       </table>
-      <p class="hint">Tap a heading to sort; tap it again to reverse. Cover: <b>e</b> = estimate (1500 the day after grazing, growing fastest, 100 a day, between 2000 and 2200, slower either side); <b>v12</b> = measured 12 days ago. Interval is the days between the start of the last two grazings (entries up to 3 days apart count as one grazing).</p>
+      <p class="hint">Tap a heading to sort; tap it again to reverse. Cover: <b>e</b> = estimate (1500 the day after grazing, growing fastest, 100 a day, between 2000 and 2200, slower either side); <b>v12</b> = measured 12 days ago (enter a measured cover with ✏️). Interval is the days between the start of the last two grazings (entries up to 3 days apart count as one grazing).</p>
       <dialog id="edit-dialog" class="edit-dialog">
         <form id="edit-form" method="dialog">
           <h2 id="edit-title"></h2>
           <label>Name <input id="edit-name" autocomplete="off" spellcheck="false" enterkeyhint="done"></label>
+          <label>Cover measured today (kg DM/ha)
+            <input id="edit-cover" type="number" inputmode="numeric" min="0" max="10000" step="1" placeholder="leave blank if not measured" enterkeyhint="done"></label>
           <p id="edit-note" class="hint"></p>
           <div class="row">
             <button type="submit" value="save">Save</button>

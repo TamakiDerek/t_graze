@@ -1,4 +1,4 @@
-import { Store, slots, currentHalf, isoDate, photoName, logCsv, photosCsv, paddockStats, sortPaddockStats, SORT_DEFAULTS } from "./model.js";
+import { Store, slots, currentHalf, isoDate, photoName, logCsv, photosCsv, paddockStats, sortPaddockStats, SORT_DEFAULTS, measureCover } from "./model.js";
 import { encode, shortCode } from "./pluscode.js";
 import { insertExif } from "./exif.js";
 import { Cloud, pendingPhotoFiles } from "./cloud.js";
@@ -170,7 +170,7 @@ for (const th of document.querySelectorAll("#tab-paddocks th[data-sort]")) {
   });
 }
 
-// Edit (pencil): rename or remove one paddock.
+// Edit (pencil): rename or remove one paddock, or enter a measured cover.
 let editing = null;
 $("paddock-rows").addEventListener("click", (event) => {
   const btn = event.target.closest("button.edit");
@@ -179,6 +179,7 @@ $("paddock-rows").addEventListener("click", (event) => {
   const uses = store.paddockUses(editing);
   $("edit-title").textContent = editing;
   $("edit-name").value = editing;
+  $("edit-cover").value = "";
   $("edit-remove").disabled = uses > 0;
   $("edit-note").textContent = uses
     ? `Used in the grazing log ${uses} time(s), so it can be renamed (the log follows) but not removed.`
@@ -192,10 +193,23 @@ $("edit-form").addEventListener("submit", (event) => {
   try {
     if (action === "save") {
       const next = $("edit-name").value;
-      if (next.trim() === editing) return;
-      const clean = store.renamePaddock(editing, next);
-      if (clean !== editing) cloud.paddockRenamed(editing, clean);
-      toast(`Renamed to "${clean}" (grazing log updated)`);
+      const coverText = $("edit-cover").value.trim();
+      const coverValue = Number(coverText);
+      if (coverText && !(coverValue >= 0 && coverValue <= 10000)) throw new Error("Cover must be a number from 0 to 10000");
+      const done = [];
+      let name = editing;
+      if (next.trim() !== editing) {
+        name = store.renamePaddock(editing, next);
+        if (name !== editing) cloud.paddockRenamed(editing, name);
+        done.push(`Renamed to "${name}" (grazing log updated)`);
+      }
+      if (coverText) {
+        const reading = measureCover(store, name, coverText, new Date());
+        cloud.coverMeasured(reading);
+        done.push(`Cover ${reading.cover} saved for ${name}` + (reading.predicted != null ? ` (estimate was ${reading.predicted})` : ""));
+      }
+      if (!done.length) return;
+      toast(done.join(". "));
     } else if (action === "remove") {
       if (!confirm(`Remove "${editing}" from the paddock list?`)) {
         event.preventDefault();
