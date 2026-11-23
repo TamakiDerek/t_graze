@@ -226,7 +226,22 @@ h2 { font-size: 1rem; margin: 24px 0 4px; }
 .feed-inputs input { padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink); font-size: 1rem; width: 100%; box-sizing: border-box; }
 .feed-demand { grid-column: 1 / -1; margin: 0; font-weight: 600; }
 .chart.feed { --row-h: 22px; margin-top: 8px; }
-.chart.feed .chart-row { grid-template-columns: 3.9em 1fr 4.4em 6.5em; }
+.chart.feed .chart-row { grid-template-columns: 3.9em 3.2em 4.4em 1fr; }
+.chart.feed .afc { text-align: right; font-variant-numeric: tabular-nums; }
+.feed-line { display: block; width: 100%; height: auto; }
+.feed-line .grid { stroke: var(--line); stroke-width: 1; }
+.feed-line .grid.minor { stroke-dasharray: 2 3; }
+.feed-line .ylab { font-size: 9.5px; fill: var(--muted); text-anchor: end; }
+.feed-line .xlab { font-size: 9.5px; fill: var(--muted); text-anchor: middle; }
+.feed-line .xlab.first { text-anchor: start; }
+.feed-line .xlab.last { text-anchor: end; }
+.feed-line .fan.outer { fill: var(--brand); opacity: 0.12; }
+.feed-line .fan.inner { fill: var(--brand); opacity: 0.16; }
+.feed-line .line { fill: none; stroke: var(--brand); stroke-width: 2.2; stroke-linejoin: round; }
+.feed-line .today { fill: var(--brand); }
+.feed-line .short { fill: var(--warn); }
+.feed-days { margin-top: 6px; }
+.feed-days summary { color: var(--muted); font-size: 0.9rem; cursor: pointer; padding: 4px 0; }
 .chart.feed .day { white-space: nowrap; }
 .chart.feed .grazed { font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chart.feed .chart-row.short { color: var(--warn); }

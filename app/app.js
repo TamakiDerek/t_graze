@@ -1,3 +1,4 @@
+import { forecastBand, forecastRange } from "./model.js";
 import { Store, slots, currentHalf, isoDate, photoName, logCsv, photosCsv, paddockStats, sortPaddockStats, SORT_DEFAULTS, measureCover, coverRanking, forecastFeed } from "./model.js";
 import { encode, shortCode } from "./pluscode.js";
 import { insertExif } from "./exif.js";
@@ -140,6 +141,49 @@ const shortDate = (iso) => new Date(iso + "T12:00").toLocaleDateString("en-NZ", 
 const dayLabel = (iso) => new Date(iso + "T12:00").toLocaleDateString("en-NZ", { weekday: "short", day: "numeric" });
 
 /** Feed ahead, drawn like the cover chart: one row per day, a bar for the average farm cover. */
+// Feed ahead as a line: average farm cover for the next 3 weeks, with a fan that widens each day
+// (today is known; later days depend on growth and on the grazing plan being followed).
+const SVG_NS = "http://www.w3.org/2000/svg";
+function svg(tag, attrs = {}, text) {
+  const n = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (text != null) n.textContent = text;
+  return n;
+}
+function feedLine(days) {
+  const band = forecastBand(days);
+  const range = forecastRange(band);
+  const W = 360, H = 190, L = 40, R = 8, T = 8, B = 22;
+  const n = days.length - 1;
+  const x = (d) => L + ((W - L - R) * d) / n;
+  const y = (v) => T + ((H - T - B) * (range.hi - Math.min(range.hi, Math.max(range.lo, v)))) / (range.hi - range.lo);
+  const root = svg("svg", { viewBox: `0 0 ${W} ${H}`, class: "feed-line", role: "img",
+    "aria-label": `Average cover, today ${band[0].afc} kg DM/ha, in 3 weeks about ${band.at(-1).afc}` });
+  // y grid every 250 kg, labelled
+  for (let v = Math.ceil(range.lo / 250) * 250; v <= range.hi; v += 250) {
+    root.append(svg("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), class: v % 500 ? "grid minor" : "grid" }));
+    if (v % 500 === 0) root.append(svg("text", { x: L - 4, y: y(v) + 3.5, class: "ylab" }, String(v)));
+  }
+  // fan: outer (full spread) and inner (half) bands
+  const area = (k) => {
+    const top = band.map((p) => `${x(p.d)},${y(p.afc + (p.hi - p.afc) * k)}`);
+    const bottom = band.slice().reverse().map((p) => `${x(p.d)},${y(p.afc - (p.afc - p.lo) * k)}`);
+    return `M${top.join("L")}L${bottom.join("L")}Z`;
+  };
+  root.append(svg("path", { d: area(1), class: "fan outer" }), svg("path", { d: area(0.5), class: "fan inner" }));
+  root.append(svg("path", { d: "M" + band.map((p) => `${x(p.d)},${y(p.afc)}`).join("L"), class: "line" }));
+  root.append(svg("circle", { cx: x(0), cy: y(band[0].afc), r: 3.5, class: "today" }));
+  // shortfall days marked on the line
+  for (const p of band) if (days[p.d].shortfall) root.append(svg("circle", { cx: x(p.d), cy: y(p.afc), r: 3, class: "short" }));
+  // x labels: today, then each week
+  for (const d of [0, 7, 14, 21].filter((d) => d <= n)) {
+    root.append(svg("text", { x: x(d), y: H - 6, class: `xlab${d === 0 ? " first" : d === n ? " last" : ""}` }, d === 0 ? "Today" : dayLabel(days[d].date)));
+  }
+  const wrap = el("div", "feed-line-wrap");
+  wrap.append(root, el("p", "hint", `Average cover, kg DM/ha. Today ${band[0].afc}; in 3 weeks about ${band.at(-1).afc} (shaded: could be roughly ${band.at(-1).lo}–${band.at(-1).hi}).`));
+  return wrap;
+}
+
 function renderFeed() {
   showFeedInputs();
   const { cows, perCow } = feedSettings();
@@ -151,16 +195,21 @@ function renderFeed() {
     $("feed-note").textContent = "No paddock in the rotation has both a cover and an area yet.";
     return;
   }
+  chart.append(feedLine(f.days));
+  // Day by day, folded away under the chart: what's available and which paddocks get grazed.
+  const details = el("details", "feed-days");
+  details.append(el("summary", "", "Day by day: feed available and paddocks grazed"));
   const head = chartHead("Day", "Avail. kg");
   head.append(el("span", "grazed", "Grazed"));
-  chart.append(head);
+  details.append(head);
   for (const d of f.days) {
     const row = el("div", d.shortfall ? "chart-row short" : "chart-row");
     const grazed = d.grazed.map((g) => g.name + (g.finished ? "" : "…")).join(", ") + (d.shortfall ? ` short ${kg(d.shortfall)}` : "");
     row.title = `${shortDate(d.date)}: average cover ${d.afc} kg DM/ha, ${kg(d.available)} kg available` + (grazed ? `; ${grazed}` : "");
-    row.append(el("span", "day", d === f.days[0] ? "Today" : dayLabel(d.date)), barCell(d.afc, "e"), el("span", "avail", kg(d.available)), el("span", "grazed", grazed));
-    chart.append(row);
+    row.append(el("span", "day", d === f.days[0] ? "Today" : dayLabel(d.date)), el("span", "afc", d.afc ?? "–"), el("span", "avail", kg(d.available)), el("span", "grazed", grazed));
+    details.append(row);
   }
+  chart.append(details);
   const shortDays = f.days.filter((d) => d.shortfall);
   $("feed-note").textContent = `Average cover over ${f.area} ha in the rotation` +
     (f.out.length ? `; out of the rotation: ${f.out.join(", ")}` : "") +

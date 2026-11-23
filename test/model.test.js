@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store, slots, photoName, logCsv, paddockStats, sortPaddockStats, growthRate, estimateCover, measureCover, COVER_MODEL, growCover, coverRanking, forecastFeed, photoDayCover } from "../app/model.js";
+import { Store, slots, photoName, logCsv, paddockStats, sortPaddockStats, growthRate, estimateCover, measureCover, COVER_MODEL, growCover, coverRanking, forecastFeed, photoDayCover, forecastBand, forecastRange } from "../app/model.js";
 
 const memory = () => {
   const m = new Map();
@@ -300,4 +300,13 @@ test("photoDayCover averages the accepted photos for one paddock on one day", ()
   assert.deepEqual(photoDayCover(photos, "B02", "2026-11-24"), { cover: 2550, count: 3 });
   assert.deepEqual(photoDayCover(photos, "B02", "2026-11-25"), { cover: 1800, count: 1 });
   assert.equal(photoDayCover(photos, "A01", "2026-11-24"), null);
+});
+
+test("feed-ahead fan: none today, widening each day; range is today ±500 unless the line leaves it", () => {
+  const days = [{ date: "2026-11-24", afc: 2230 }, { date: "2026-11-25", afc: 2210 }, { date: "2026-11-26", afc: null }, { date: "2026-11-27", afc: 2190 }];
+  const band = forecastBand(days, 20);
+  assert.deepEqual(band.map((x) => [x.d, x.lo, x.hi]), [[0, 2230, 2230], [1, 2190, 2230], [3, 2130, 2250]]);
+  assert.deepEqual(forecastRange(band), { lo: 1700, hi: 2700 });
+  assert.deepEqual(forecastRange([{ afc: 2200 }, { afc: 1550 }]), { lo: 1500, hi: 2700 }); // line went below: widened
+  assert.equal(forecastRange([]), null);
 });
