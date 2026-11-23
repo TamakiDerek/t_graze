@@ -92,17 +92,17 @@ test("paddock stats: days since last graze, visit-to-visit interval, cover", () 
   const byName = Object.fromEntries(Object.entries(full).map(([k, { coverFrom, ...r }]) => [k, r]));
   assert.deepEqual(full.A1.coverFrom, { cover: 1500, date: "2026-11-11" }); // the day after the last grazing
   assert.deepEqual(full.Measured.coverFrom, { cover: 2650, date: "2026-11-09" });
-  assert.deepEqual(byName.A1, { name: "A1", lastDays: 11, interval: 21, cover: 2404, coverKind: "e", coverAge: null });
+  assert.deepEqual(byName.A1, { name: "A1", lastDays: 11, interval: 21, cover: estimateCover(11), coverKind: "e", coverAge: null });
   assert.deepEqual(byName.A2, { name: "A2", lastDays: 1, interval: null, cover: 1500, coverKind: "e", coverAge: null });
   assert.deepEqual(byName.B1, { name: "B1", lastDays: 0, interval: 27, cover: estimateCover(27), coverKind: "e", coverAge: null });
   assert.deepEqual(byName.Never, { name: "Never", lastDays: null, interval: null, cover: null, coverKind: null, coverAge: null });
   assert.deepEqual(byName.Measured, { name: "Measured", lastDays: 20, interval: null, cover: growCover(2650, 12), coverKind: "m", coverAge: 12 });
-  assert.deepEqual(byName.Stale, { name: "Stale", lastDays: 22, interval: null, cover: 3179, coverKind: "e", coverAge: null });
+  assert.deepEqual(byName.Stale, { name: "Stale", lastDays: 22, interval: null, cover: estimateCover(22), coverKind: "e", coverAge: null });
 
   const rows = paddockStats(s, now);
   const names = (key, dir) => sortPaddockStats(rows, key, dir).map((r) => r.name);
   assert.deepEqual(names("lastDays", "asc"), ["B1", "A2", "A1", "Measured", "Stale", "Never"]);
-  assert.deepEqual(names("cover", "desc"), ["B1", "Measured", "Stale", "A1", "A2", "Never"]);
+  assert.deepEqual(names("cover", "desc"), ["Measured", "B1", "Stale", "A1", "A2", "Never"]);
   assert.deepEqual(names("interval", "asc"), ["A1", "B1", "A2", "Measured", "Never", "Stale"]);
   assert.deepEqual(names("name", "desc"), ["Stale", "Never", "Measured", "B1", "A2", "A1"]);
 });
@@ -132,12 +132,12 @@ test("grazing again within 3 days continues the visit; 4 days apart is a new one
   assert.equal(byName.Cont.lastDays, 0);
 });
 
-test("growth curve: 100/day at 2000-2200, 5 less per 100 kg either side, minimum 30", () => {
+test("growth curve (halved): 50/day at 2000-2200, 2.5 less per 100 kg either side, minimum 15", () => {
   const rates = [500, 1500, 1900, 2000, 2100, 2200, 2300, 2400, 3600, 4000].map((c) => growthRate(c));
-  assert.deepEqual(rates, [30, 75, 95, 100, 100, 100, 95, 90, 30, 30]);
+  assert.deepEqual(rates, [15, 37.5, 47.5, 50, 50, 50, 47.5, 45, 15, 15]);
   assert.equal(estimateCover(0), 1500);
   assert.equal(estimateCover(1), 1500);
-  assert.equal(estimateCover(2), 1575); // 1500 + 75
+  assert.equal(estimateCover(2), 1538); // 1500 + 37.5
   // any [cover, growth] table can replace the curve
   assert.equal(growthRate(250, [[0, 10], [500, 20]]), 15);
 });
@@ -155,7 +155,7 @@ test("measured cover: grows from the measurement and keeps the figure it replace
   const later = new Date(2026, 10, 24, 9, 0);
   const g = paddockStats(s, later).find((x) => x.name === "G");
   assert.deepEqual([g.cover, g.coverKind, g.coverAge], [growCover(2450, 3), "m", 3]);
-  assert.equal(growCover(2450, 3), 2700); // 87.5/day at 2450, slowing as it grows
+  assert.equal(growCover(2450, 3), 2578); // 43.75/day at 2450, slowing as it grows
   // measuring again: the prediction now grows from the previous measurement
   const again = measureCover(s, "G", 2600, later);
   assert.deepEqual([again.predicted, again.start_cover, again.start_day], [growCover(2450, 3), 2450, "2026-11-21"]);

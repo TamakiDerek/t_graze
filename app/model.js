@@ -61,17 +61,18 @@ export const COVER_AFTER_GRAZING = 1500;
 
 // Daily growth (kg DM/ha/day) by current cover (kg DM/ha): [cover, growth] points, straight lines
 // between them, flat beyond the ends. Replace with a finer table as trials refine it.
-// Now: 100/day from 2000 to 2200, 5 less per 100 kg either side, never below 30.
+// Now (halved 2026-11-23, growth looked too high): 50/day from 2000 to 2200, 2.5 less per 100 kg
+// either side, never below 15. Was 100/day, 5 less per 100 kg, min 30.
 export const GROWTH_CURVE = [
-  [600, 30],
-  [2000, 100],
-  [2200, 100],
-  [3600, 30],
+  [600, 15],
+  [2000, 50],
+  [2200, 50],
+  [3600, 15],
 ];
 
 // Saved with every measured cover, so readings can be matched to the estimate that predicted them.
 // Change it whenever GROWTH_CURVE or the estimate rule changes.
-export const COVER_MODEL = "curve-2026-11-23-m"; // -m: measured covers grow too
+export const COVER_MODEL = "half-curve-2026-11-23"; // halved growth curve; measured covers grow too
 
 /** Growth per day at a given cover, interpolated from a [cover, growth] table sorted by cover. */
 export function growthRate(cover, curve = GROWTH_CURVE) {
