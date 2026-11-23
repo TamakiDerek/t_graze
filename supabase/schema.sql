@@ -23,7 +23,7 @@ create table if not exists public.paddocks (
   created_at timestamptz not null default now(),
   primary key (farm_id, name)
 );
--- Latest measured ("verified") pasture cover in kg DM/ha and the day it was measured. Kept up to date
+-- Latest measured pasture cover in kg DM/ha and the day it was measured. Kept up to date
 -- from cover_readings (covers.sql). Until the paddock is next grazed the phones show this instead of
 -- their estimate.
 alter table public.paddocks add column if not exists cover integer;
