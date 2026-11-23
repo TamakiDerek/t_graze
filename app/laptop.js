@@ -113,9 +113,9 @@ async function choose(file) {
   $("pick").hidden = false;
   $("pick-title").textContent = chosen.plus_code.slice(4);
   $("pick-sub").textContent = `${when(chosen.taken_at)} · ±${Math.round(chosen.accuracy_m ?? 0)} m`;
-  const sel = $("pick-paddock");
-  sel.replaceChildren(new Option("Choose…", ""), ...store.paddocks.map((n) => new Option(n, n)));
-  sel.value = chosen.paddock ?? "";
+  // A typing box with suggestions: "D" lists only the D paddocks (a dropdown jumps to D01 at the bottom).
+  $("paddock-names").replaceChildren(...store.paddocks.map((n) => new Option(n)));
+  $("pick-paddock").value = chosen.paddock ?? "";
   $("pick-cover").value = coverOf(chosen) ?? "";
   $("pick-est").textContent = chosen.cover_estimate == null ? "No estimate yet: type the cover."
     : `Estimated ${chosen.cover_estimate} (${chosen.estimate_by ?? "estimate"}).`;
@@ -149,7 +149,13 @@ $("pick-close").addEventListener("click", () => {
 $("pick-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!chosen) return;
-  const paddock = $("pick-paddock").value;
+  const typed = $("pick-paddock").value.trim();
+  const paddock = store.paddocks.find((n) => n.toLowerCase() === typed.toLowerCase());
+  if (!paddock) {
+    toast(`"${typed}" isn't one of the farm's paddocks. Type its name, e.g. D01, and pick it from the list.`, true);
+    $("pick-paddock").focus();
+    return;
+  }
   const cover = Math.round(Number($("pick-cover").value));
   const taken = new Date(chosen.taken_at);
   const day = isoDate(taken);
