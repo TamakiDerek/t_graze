@@ -138,6 +138,7 @@ function drawMap(refit = true) {
       maxZoom: 21, maxNativeZoom: 19,
       attribution: "Imagery © Esri, Maxar, Earthstar Geographics, and the GIS user community",
     }).addTo(map);
+    map.on("zoomend", layoutLabels);
   }
   map.invalidateSize(); // the map was hidden until now
   for (const r of squares.values()) r.remove();
@@ -159,9 +160,47 @@ function drawMap(refit = true) {
     squares.set(p.file, rect);
   }
   markChosen();
-  if (!refit) return;
-  if (bounds.length) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 19 });
-  else map.setView([-37.75, 175.3], 14);
+  if (refit) {
+    if (bounds.length) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 19 });
+    else map.setView([-37.75, 175.3], 14);
+  }
+  requestAnimationFrame(layoutLabels);
+}
+
+// Photos a few metres apart have squares side by side, and their labels would run into each other.
+// Place each label to the right of its square; if that hits a label already placed, try the left,
+// then a line above or below, and so on. Redone after every zoom (the squares change size).
+function layoutLabels() {
+  if (!map) return;
+  const placed = [];
+  const overlap = (b, p) => b.x < p.x + p.w + 2 && p.x < b.x + b.w + 2 && b.y < p.y + p.h + 1 && p.y < b.y + b.h + 1;
+  // Squares are in the way too: a label sitting on the next square reads as that square's.
+  const screenBox = (r) => {
+    const a = map.latLngToContainerPoint(r.getBounds().getNorthWest());
+    const b = map.latLngToContainerPoint(r.getBounds().getSouthEast());
+    return { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y, rect: r };
+  };
+  const squareBoxes = [...squares.values()].map(screenBox);
+  const rects = [...squares.values()].sort((a, b) => b.getBounds().getNorth() - a.getBounds().getNorth());
+  for (const rect of rects) {
+    const tip = rect.getTooltip();
+    const el = tip?.getElement();
+    if (!el) continue;
+    const c = map.latLngToContainerPoint(rect.getBounds().getCenter());
+    const half = (map.latLngToContainerPoint(rect.getBounds().getNorthEast()).x - map.latLngToContainerPoint(rect.getBounds().getSouthWest()).x) / 2;
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    const gap = Math.max(6, half + 4);
+    const box = (dir, dy) => ({ x: dir === "right" ? c.x + gap : c.x - gap - w, y: c.y + dy - h / 2, w, h, dir, dy });
+    const tries = [];
+    for (const k of [0, -1, 1, -2, 2, -3, 3]) for (const dir of ["right", "left"]) tries.push(box(dir, k * (h + 2)));
+    const free = (b) => !placed.some((p) => overlap(b, p)) && !squareBoxes.some((s) => s.rect !== rect && overlap(b, s));
+    const pick = tries.find(free) ?? tries.find((b) => !placed.some((p) => overlap(b, p))) ?? tries[0];
+    placed.push(pick);
+    tip.options.direction = pick.dir;
+    tip.options.offset = L.point(pick.dir === "right" ? gap : -gap, pick.dy);
+    tip.update();
+  }
 }
 
 // The photo open in the panel: its square gets a thick white outline and its label stands out,
@@ -174,6 +213,7 @@ function markChosen() {
     if (on) rect.bringToFront();
   }
   for (const li of $("photo-list").children) li.classList.toggle("chosen", li.dataset.file === chosen?.file);
+  requestAnimationFrame(layoutLabels); // the chosen label is bigger
 }
 
 function drawList() {
