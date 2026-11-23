@@ -6,6 +6,12 @@ Android Chrome and has two jobs:
 - **Grazing log**: a vertical table of half-days (`Nov 17 am`, `Nov 17 pm`, newest first) with two
   paddock boxes per row. Known paddocks are suggested as you type. A name that isn't on the list asks
   *New paddock "…" - add to list?* If you say no, nothing is saved.
+- **Laptop page** (`laptop.html`, e.g. https://tamakiderek.github.io/t_graze/laptop.html): an aerial map
+  (Esri World Imagery) with each photo drawn as its plus-code square (about 14 × 14 m) and labelled with
+  the cover estimated from it (`photos.cover_estimate`, yellow) or accepted (green, with the paddock). Click
+  one to see the photo, choose the paddock and accept or change the cover: that sets `photos.paddock` /
+  `cover_accepted` and adds a `cover_readings` row with method `photo` for that paddock on the photo's day.
+  The laptop signs in and gets approved like a phone.
 - **Paddock photos**: the 📷 button stays disabled until there is a GPS fix less than a minute old.
   Each photo is saved to the phone's **Download** folder as `YYYY_MMDD_<short plus code>.jpg`
   (e.g. `2026_1117_8R9C+W2.jpg`). A second photo with the same name gets `_2`, `_3` and so on. The

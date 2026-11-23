@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#2f6b2f">
+  <title>t_graze laptop</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="laptop.css">
+</head>
+<body class="laptop">
+  <header class="bar">
+    <h1>t_graze <small id="app-version" class="ver"></small> <span class="where">laptop</span></h1>
+    <div class="chips"><span id="status" class="gps">Starting…</span></div>
+  </header>
+
+  <section id="approve" class="approve" hidden>
+    <h2>This laptop needs approving</h2>
+    <p>Send this code to the farm manager. The page checks again every 30 seconds.</p>
+    <p class="code" id="approve-code">…</p>
+  </section>
+
+  <main id="main" class="lap" hidden>
+    <div id="map" class="map"></div>
+    <aside class="side">
+      <div id="pick-none">
+        <h2>Photo covers</h2>
+        <p class="hint">Each square is the plus-code area (about 14 × 14 m) a photo was taken in, labelled with the
+          cover estimated from the photo. Click one to see the photo, say which paddock it's in, and accept or change
+          the cover.</p>
+        <p class="hint"><span class="key est"></span> estimated, not checked yet
+          <span class="key ok"></span> accepted</p>
+        <ul id="photo-list" class="plist"></ul>
+      </div>
+      <div id="pick" hidden>
+        <button id="pick-close" class="plain back" type="button">← All photos</button>
+        <h2 id="pick-title"></h2>
+        <p id="pick-sub" class="hint"></p>
+        <a id="pick-link" target="_blank" rel="noopener"><img id="pick-img" alt="Paddock photo"></a>
+        <form id="pick-form">
+          <label>Paddock
+            <select id="pick-paddock" required><option value="">Choose…</option></select></label>
+          <label>Cover (kg DM/ha)
+            <input id="pick-cover" type="number" min="0" max="10000" step="10" required></label>
+          <p id="pick-est" class="hint"></p>
+          <div class="row">
+            <button type="submit">Accept for this paddock</button>
+          </div>
+          <p id="pick-note" class="hint"></p>
+        </form>
+      </div>
+    </aside>
+  </main>
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="version.js"></script>
+  <script type="module" src="laptop.js"></script>
+</body>
+</html>

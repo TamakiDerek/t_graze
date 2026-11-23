@@ -146,3 +146,11 @@ drop policy if exists "members replace farm photos" on storage.objects;
 create policy "members replace farm photos" on storage.objects
   for update to authenticated
   using (bucket_id = 'photos' and public.is_farm_member(((storage.foldername(name))[1])::uuid));
+
+-- Laptop side: which paddock a photo was taken in, the cover estimated from it, and the cover the
+-- farmer accepted (that also goes into cover_readings with method 'photo').
+alter table public.photos add column if not exists paddock text;
+alter table public.photos add column if not exists cover_estimate integer check (cover_estimate is null or cover_estimate between 0 and 10000);
+alter table public.photos add column if not exists estimate_by text;   -- who/what made the estimate
+alter table public.photos add column if not exists cover_accepted integer check (cover_accepted is null or cover_accepted between 0 and 10000);
+alter table public.photos add column if not exists accepted_at timestamptz;
