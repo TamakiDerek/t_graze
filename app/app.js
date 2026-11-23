@@ -94,16 +94,18 @@ function renderAnalysis() {
   renderFeed();
 }
 
-// Tap a paddock name in the cover chart: take it out of the rotation, or put it back in.
-$("cover-chart").addEventListener("click", (event) => {
-  const btn = event.target.closest("button.pname");
-  if (!btn) return;
-  const name = btn.dataset.name;
+// Tap a paddock name (Analysis chart or Paddocks table): take it out of the rotation, or put it back in.
+function toggleRotation(name) {
   const out = !store.isOut(name);
   store.setOut(name, out);
   cloud.paddockRotationSet(name, !out);
   toast(out ? `${name} out of the rotation (not grazed in the feed ahead)` : `${name} back in the rotation`);
-  renderAnalysis();
+  if (!$("tab-analysis").hidden) renderAnalysis();
+  if (!$("tab-paddocks").hidden) renderPaddocks();
+}
+$("cover-chart").addEventListener("click", (event) => {
+  const btn = event.target.closest("button.pname");
+  if (btn) toggleRotation(btn.dataset.name);
 });
 
 // Feed ahead: herd size and intake are a farm setting, shared by every phone (saved here for offline use).
@@ -249,7 +251,17 @@ function renderPaddocks() {
     tr.innerHTML = `<td class="name"></td><td class="mid"></td><td class="num"></td><td class="mid"></td>
       <td><button type="button" class="edit" aria-label="Edit">✏️</button></td>`;
     const cells = tr.querySelectorAll("td");
-    cells[0].textContent = r.name;
+    const out = store.isOut(r.name);
+    if (out) tr.className = "out";
+    const nameBtn = document.createElement("button");
+    nameBtn.type = "button";
+    nameBtn.className = "pname-toggle";
+    nameBtn.dataset.name = r.name;
+    nameBtn.textContent = r.name;
+    nameBtn.setAttribute("aria-pressed", String(!out));
+    nameBtn.title = out ? "Out of the rotation - tap to put back in" : "In the rotation - tap to take out";
+    cells[0].append(nameBtn);
+    if (out) cells[0].append(Object.assign(document.createElement("small"), { className: "out-tag", textContent: "out" }));
     cells[1].textContent = num(r.lastDays);
     if (r.cover == null) {
       cells[2].textContent = "–";
@@ -291,6 +303,11 @@ for (const th of document.querySelectorAll("#tab-paddocks th[data-sort]")) {
 // Edit (pencil): rename or remove one paddock, or enter a measured cover.
 let editing = null;
 $("paddock-rows").addEventListener("click", (event) => {
+  const toggle = event.target.closest("button.pname-toggle");
+  if (toggle) {
+    toggleRotation(toggle.dataset.name);
+    return;
+  }
   const btn = event.target.closest("button.edit");
   if (!btn) return;
   editing = btn.dataset.name;
