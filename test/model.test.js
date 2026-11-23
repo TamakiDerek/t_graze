@@ -70,9 +70,9 @@ test("corrupt storage starts fresh instead of crashing", () => {
 test("paddock stats: days since last graze, visit-to-visit interval, cover", () => {
   const s = new Store(memory());
   for (const p of ["A1", "A2", "B1", "Never", "Measured", "Stale"]) s.addPaddock(p);
-  // A1: visit Oct 20 pm + Oct 21 am (one visit), then Nov 10 am + pm (one visit)
+  // A1: visit Oct 20 pm + Oct 23 am (3 days apart: one visit), then Nov 10 am + pm (one visit)
   s.setSlot("2026-10-20 pm", 0, "A1");
-  s.setSlot("2026-10-21 am", 0, "A1");
+  s.setSlot("2026-10-23 am", 0, "A1");
   s.setSlot("2026-11-10 am", 0, "A1");
   s.setSlot("2026-11-10 pm", 1, "A1");
   // A2: grazed once, yesterday
@@ -115,4 +115,16 @@ test("renaming a paddock keeps its measured cover", () => {
 test("default sort directions: last grazed and cover largest first, interval smallest first", async () => {
   const { SORT_DEFAULTS } = await import("../app/model.js");
   assert.deepEqual(SORT_DEFAULTS, { name: "asc", lastDays: "desc", cover: "desc", interval: "asc" });
+});
+
+test("grazing again within 3 days continues the visit; 4 days apart is a new one", () => {
+  const s = new Store(memory());
+  for (const p of ["Cont", "New"]) s.addPaddock(p);
+  for (const k of ["2026-10-20 am", "2026-11-18 pm", "2026-11-21 am"]) s.setSlot(k, 0, "Cont");
+  for (const k of ["2026-10-20 am", "2026-11-17 pm", "2026-11-21 am"]) s.setSlot(k, 1, "New");
+  const now = new Date(2026, 10, 21, 9, 0);
+  const byName = Object.fromEntries(paddockStats(s, now).map((r) => [r.name, r]));
+  assert.equal(byName.Cont.interval, 29); // Oct 20 -> Nov 18 (Nov 21 continues it)
+  assert.equal(byName.New.interval, 4); // Nov 17 -> Nov 21
+  assert.equal(byName.Cont.lastDays, 0);
 });

@@ -15,7 +15,7 @@ The Paddocks tab is a sortable table (tap a heading; tap again to reverse): **La
 **Cover** (kg DM/ha: an estimate tagged `e` of 1500 the day after grazing plus 100 a day, or, once measured
 after the last grazing, the measured value from `paddocks.cover`/`cover_date` tagged e.g. `v12` = measured 12
 days ago) and **Interval** (days
-between the starts of the last two grazings; back-to-back days count as one grazing). The ✏️ button renames
+between the starts of the last two grazings; entries up to 3 days apart count as one grazing). The ✏️ button renames
 a paddock (the log follows) or removes it (only if unused). The tab also
 exports CSVs for the laptop side:
 
