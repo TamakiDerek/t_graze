@@ -3,6 +3,20 @@ body.laptop { padding-bottom: 0; }
 .bar .where { font-weight: 400; font-size: 0.85rem; opacity: 0.8; margin-left: 4px; }
 .approve { max-width: 520px; margin: 40px auto; padding: 0 16px; }
 .lap { max-width: none; margin: 0; padding: 0; width: 100%; display: grid; grid-template-columns: 1fr 380px; height: calc(100dvh - 48px); }
+/* Phone view: the phone app in a phone-sized frame to the right of the panel */
+.phone { display: none; }
+body.with-phone .lap { grid-template-columns: 1fr 320px 414px; }
+body.with-phone .phone {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 12px; border-left: 1px solid var(--line); background: #1b211b; min-height: 0;
+}
+.phone-body {
+  flex: 1; min-height: 0; width: 390px; max-height: 860px; padding: 10px 8px; border-radius: 34px;
+  background: #0b0d0b; box-shadow: 0 0 0 2px #3a433a, 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.phone-body iframe { display: block; width: 100%; height: 100%; border: 0; border-radius: 26px; background: var(--bg); }
+.phone .plain { border: 0; background: none; color: #9aa597; font-size: 0.85rem; cursor: pointer; }
+.chips button.gps { cursor: pointer; }
 .map { min-height: 300px; background: #263326; }
 .side { overflow-y: auto; padding: 8px 16px 24px; border-left: 1px solid var(--line); background: var(--bg); }
 .side h2 { margin-top: 8px; font-size: 1.1rem; }
@@ -24,6 +38,10 @@ body.laptop { padding-bottom: 0; }
   font: 600 12px/1.3 system-ui, sans-serif; box-shadow: none; }
 .leaflet-tooltip.cov.ok { color: #6ee7a0; }
 .leaflet-tooltip.cov::before { display: none; }
+@media (max-width: 1100px) {
+  body.with-phone .lap { grid-template-columns: 1fr 414px; }
+  body.with-phone .side { display: none; }
+}
 @media (max-width: 800px) {
   .lap { grid-template-columns: 1fr; grid-template-rows: 55dvh auto; height: auto; }
   .side { border-left: 0; }
