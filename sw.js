@@ -1,5 +1,5 @@
 // Offline support: network first (so updates show up when there's signal), cache fallback in the paddock.
-const CACHE = "t_graze-v8";
+const CACHE = "t_graze-v9";
 const SHELL = [
   "./",
   "index.html",

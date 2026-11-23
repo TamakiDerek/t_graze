@@ -56,10 +56,13 @@ const dayNumber = (iso) => {
 // growing 100 a day. A measured ("verified") cover replaces it until the paddock is next grazed.
 export const COVER_AFTER_GRAZING = 1500;
 export const COVER_GROWTH_PER_DAY = 100;
+// Entries up to this many days apart count as one continuing grazing, not a new one.
+export const GRAZING_GAP_DAYS = 3;
 
 /**
  * Per-paddock figures for the Paddocks table.
- * A paddock grazed on days that touch (same day or the next day) counts as one visit.
+ * A paddock grazed again within GRAZING_GAP_DAYS of its previous entry is still the same visit
+ * (a continuation), so e.g. Nov 21 pm + Nov 24 am is one visit starting Nov 21.
  * - lastDays: days from the latest entry to today (0 = today)
  * - interval: days between the start of the previous visit and the start of the latest one
  * - cover / coverKind / coverAge:
@@ -80,7 +83,7 @@ export function paddockStats(store, now) {
   }
   return store.paddocks.map((name) => {
     const list = [...(days.get(name) ?? [])].sort((a, b) => a - b);
-    const visitStarts = list.filter((d, i) => i === 0 || d - list[i - 1] > 1);
+    const visitStarts = list.filter((d, i) => i === 0 || d - list[i - 1] > GRAZING_GAP_DAYS);
     const lastGrazed = list.length ? list[list.length - 1] : null;
     const lastDays = lastGrazed == null ? null : today - lastGrazed;
 
