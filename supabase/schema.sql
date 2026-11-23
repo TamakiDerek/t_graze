@@ -137,6 +137,11 @@ create policy "members add farm photos" on storage.objects
   for insert to authenticated
   with check (bucket_id = 'photos' and public.is_farm_member(((storage.foldername(name))[1])::uuid));
 
+drop policy if exists "members delete farm photos" on storage.objects;
+create policy "members delete farm photos" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'photos' and public.is_farm_member(((storage.foldername(name))[1])::uuid));
+
 drop policy if exists "members replace farm photos" on storage.objects;
 create policy "members replace farm photos" on storage.objects
   for update to authenticated

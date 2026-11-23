@@ -411,6 +411,11 @@ export class Store {
     this.save();
   }
 
+  removePhoto(file) {
+    this.data.photos = this.data.photos.filter((p) => p.file !== file);
+    this.save();
+  }
+
   photoNames() {
     return new Set(this.data.photos.map((p) => p.file));
   }

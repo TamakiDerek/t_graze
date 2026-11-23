@@ -95,6 +95,7 @@ main { padding: 8px 12px; max-width: 640px; margin: 0 auto; }
 .list button {
   border: 1px solid var(--line); background: var(--card); border-radius: 6px; padding: 6px 10px;
 }
+.list .photo-del { flex: none; padding: 8px 12px; font-size: 1.1rem; }
 .list .empty { color: var(--muted); justify-content: center; }
 
 .add { display: flex; gap: 8px; margin: 8px 0; }
