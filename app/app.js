@@ -44,6 +44,11 @@ function showTab(name) {
   if (name === "analysis") renderAnalysis();
 }
 
+// Cover tags: e = estimate, m5 = measured 5 days ago, p5 = from a photo 5 days ago.
+const coverTag = (r) => (r.coverKind === "e" ? "e" : `${r.coverKind}${r.coverAge}`);
+const coverWords = (r) =>
+  r.coverKind === "e" ? "(estimate)" : `(${r.coverKind === "p" ? "from a photo" : "measured"} ${r.coverAge} days ago)`;
+
 // ---------- analysis ----------
 const CHART_MIN = 1000;
 const CHART_MAX = 4000;
@@ -83,7 +88,7 @@ function renderAnalysis() {
     name.dataset.name = r.name;
     name.setAttribute("aria-pressed", String(!r.out));
     name.title = `${r.name}: ${r.out ? "out of the rotation - tap to put back in" : "in the rotation - tap to take out"}`;
-    row.title = `${r.name}: ${r.cover} kg DM/ha ${r.coverKind === "m" ? `(measured ${r.coverAge} days ago)` : "(estimate)"}` +
+    row.title = `${r.name}: ${r.cover} kg DM/ha ${coverWords(r)}` +
       (r.area != null ? `, ${r.area} ha` : "");
     row.append(name, barCell(r.cover, r.out ? "off" : r.coverKind), el("span", "avail", r.out ? "out" : r.available == null ? "–" : kg(r.available)));
     chart.append(row);
@@ -268,8 +273,8 @@ function renderPaddocks() {
     } else {
       const tag = document.createElement("span");
       tag.className = `tag ${r.coverKind}`;
-      tag.textContent = r.coverKind === "m" ? `m${r.coverAge}` : "e";
-      tag.title = r.coverKind === "m" ? `Measured ${r.coverFrom.cover} ${r.coverAge} day(s) ago, grown since` : "Estimated";
+      tag.textContent = coverTag(r);
+      tag.title = r.coverKind === "e" ? "Estimated" : `${r.coverKind === "p" ? "From a photo" : "Measured"}: ${r.coverFrom.cover} ${r.coverAge} day(s) ago, grown since`;
       cells[2].append(String(r.cover), tag);
     }
     cells[3].textContent = num(r.interval);
@@ -319,7 +324,7 @@ $("paddock-rows").addEventListener("click", (event) => {
   if (stat?.cover != null) {
     const tag = document.createElement("span");
     tag.className = `tag ${stat.coverKind}`;
-    tag.textContent = stat.coverKind === "m" ? `m${stat.coverAge}` : "e";
+    tag.textContent = coverTag(stat);
     coverNow.append(tag);
   }
   $("edit-name-now").textContent = editing;

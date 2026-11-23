@@ -108,7 +108,8 @@ export const GRAZING_GAP_DAYS = 3;
  * - lastDays: days from the latest entry to today (0 = today)
  * - interval: days between the start of the previous visit and the start of the latest one
  * - cover / coverKind / coverAge / coverFrom:
- *     "m" = measured on a day after the last grazing, grown since; coverAge = days since measured
+ *     "m" = measured (typed in) on a day after the last grazing, grown since; coverAge = days since measured
+ *     "p" = the same, but worked out from a photo (reading method "photo")
  *     "e" = estimated from the residual after grazing
  *     On a day the paddock is being grazed, cover is still what it was going in (today's entry is
  *     ignored for cover), so "how much grass are they getting?" has an answer. It drops to the
@@ -141,13 +142,13 @@ export function paddockStats(store, now) {
     const measuredDay = measured?.date ? dayNumber(measured.date) : null;
     if (Number.isFinite(measured?.value) && measuredDay != null && (coverGrazed == null || measuredDay > coverGrazed)) {
       start = { cover: measured.value, day: measuredDay };
-      coverKind = "m";
+      coverKind = measured.method === "photo" ? "p" : "m";
     } else if (coverGrazed != null) {
       start = { cover: COVER_AFTER_GRAZING, day: coverGrazed + 1 };
       coverKind = "e";
     }
     const cover = start ? growCover(start.cover, Math.max(0, today - start.day)) : null;
-    const coverAge = coverKind === "m" ? Math.max(0, today - start.day) : null;
+    const coverAge = coverKind === "m" || coverKind === "p" ? Math.max(0, today - start.day) : null;
 
     return {
       name,
@@ -162,18 +163,21 @@ export function paddockStats(store, now) {
 }
 
 /**
- * Record a measured cover for a paddock today. It shows as "m<days>", growing, until the paddock is next grazed.
+ * Record a measured cover for a paddock today. It shows as "m<days>" (or "p<days>" for method "photo"), growing,
+ * until the paddock is next grazed. method: how it was made, "typed" (measured, entered by hand) or "photo".
  * Returns the reading to upload: the measurement plus what the app was showing for the same day and
  * where that figure grew from, so the growth model can later be checked and refitted against real data.
  */
-export function measureCover(store, name, value, now) {
+export const COVER_METHODS = ["typed", "photo"];
+export function measureCover(store, name, value, now, method = "typed") {
+  if (!COVER_METHODS.includes(method)) throw new Error(`Unknown cover method "${method}"`);
   const cover = Math.round(Number(value));
   if (!Number.isFinite(cover) || cover < 0 || cover > 10000) throw new Error("Cover must be a number from 0 to 10000");
   const stat = paddockStats(store, now).find((r) => r.name === name);
   const grazed = stat?.lastDays != null;
   const day = isoDate(now);
   store.data.covers ??= {};
-  store.data.covers[name] = { value: cover, date: day };
+  store.data.covers[name] = { value: cover, date: day, method };
   store.save();
   return {
     paddock: name,
@@ -184,6 +188,7 @@ export function measureCover(store, name, value, now) {
     start_day: stat?.coverFrom?.date ?? null,
     days_since_grazed: grazed ? stat.lastDays : null,
     model: COVER_MODEL,
+    method,
   };
 }
 

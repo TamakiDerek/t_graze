@@ -420,7 +420,7 @@ export class Cloud {
     const farm = this.state.farmId;
     const since = new Date(Date.now() - PULL_DAYS * 86_400_000).toISOString().slice(0, 10);
     const [paddocks, rows, farms] = await Promise.all([
-      this.request(`/rest/v1/paddocks?select=name,cover,cover_date,area_ha,in_rotation&farm_id=eq.${farm}`),
+      this.request(`/rest/v1/paddocks?select=name,cover,cover_date,cover_method,area_ha,in_rotation&farm_id=eq.${farm}`),
       this.request(`/rest/v1/grazing_log?select=day,half,paddock_1,paddock_2&farm_id=eq.${farm}&day=gte.${since}`),
       this.request(`/rest/v1/farms?select=herd_cows,intake_kg&id=eq.${farm}`),
     ]);
@@ -438,17 +438,17 @@ export class Cloud {
     data.info ??= {};
     const pendingAreas = new Set(this.state.paddockOps.filter((o) => o.op === "area").map((o) => o.name));
     const pendingRotation = new Set(this.state.paddockOps.filter((o) => o.op === "rotation").map((o) => o.name));
-    for (const { name, cover, cover_date, area_ha, in_rotation } of paddocks) {
+    for (const { name, cover, cover_date, cover_method, area_ha, in_rotation } of paddocks) {
       if (!this.store.findPaddock(name) && !pendingNames.has(name)) data.paddocks.push(name);
       const local = this.store.findPaddock(name) ?? name;
-      if (cover != null && cover_date) data.covers[local] = { value: cover, date: cover_date };
+      if (cover != null && cover_date) data.covers[local] = { value: cover, date: cover_date, method: cover_method ?? "typed" };
       if (!pendingAreas.has(local)) data.info[local] = { ...data.info[local], area: area_ha == null ? null : Number(area_ha) };
       if (!pendingRotation.has(local) && in_rotation != null) data.info[local] = { ...data.info[local], out: !in_rotation };
     }
     // Readings still waiting to upload stay showing.
     for (const r of this.state.coverReadings) {
       const name = this.store.findPaddock(r.paddock) ?? r.paddock;
-      if (!data.covers[name] || data.covers[name].date <= r.day) data.covers[name] = { value: r.cover, date: r.day };
+      if (!data.covers[name] || data.covers[name].date <= r.day) data.covers[name] = { value: r.cover, date: r.day, method: r.method ?? "typed" };
     }
     const dirty = new Set(this.state.dirtyLog);
     const remote = new Set();

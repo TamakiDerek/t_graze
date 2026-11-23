@@ -150,7 +150,7 @@ test("measured cover: grows from the measurement and keeps the figure it replace
   const r = measureCover(s, "G", "2450", now);
   assert.deepEqual(r, {
     paddock: "G", day: "2026-11-21", cover: 2450, predicted: estimateCover(10),
-    start_cover: 1500, start_day: "2026-11-12", days_since_grazed: 10, model: COVER_MODEL,
+    start_cover: 1500, start_day: "2026-11-12", days_since_grazed: 10, model: COVER_MODEL, method: "typed",
   });
   const later = new Date(2026, 10, 24, 9, 0);
   const g = paddockStats(s, later).find((x) => x.name === "G");
@@ -270,4 +270,19 @@ test("out of rotation: kept for hay, not grazed in the forecast, flagged in the 
   assert.equal(s.isOut("Hay Paddock"), true); // status follows a rename
   s.setOut("Hay Paddock", false);
   assert.equal(forecastFeed(s, now, { cows: 50, perCow: 20, days: 1 }).days[1].grazed[0].name, "Hay Paddock");
+});
+
+test("cover method: typed readings tag m, photo readings tag p", () => {
+  const s = new Store(memory());
+  for (const p of ["T", "P"]) s.addPaddock(p);
+  const now = new Date(2026, 10, 21, 9, 0);
+  assert.equal(measureCover(s, "T", 2000, now).method, "typed");
+  assert.equal(measureCover(s, "P", 2100, now, "photo").method, "photo");
+  assert.throws(() => measureCover(s, "P", 2100, now, "guess"));
+  const later = new Date(2026, 10, 26, 9, 0);
+  const by = Object.fromEntries(paddockStats(s, later).map((r) => [r.name, r]));
+  assert.deepEqual([by.T.coverKind, by.T.coverAge], ["m", 5]);
+  assert.deepEqual([by.P.coverKind, by.P.coverAge], ["p", 5]);
+  s.data.covers.T = { value: 2000, date: "2026-11-21" }; // older saved covers have no method: treated as typed
+  assert.equal(paddockStats(s, later).find((r) => r.name === "T").coverKind, "m");
 });

@@ -23,6 +23,13 @@ drop policy if exists "members use cover readings" on public.cover_readings;
 create policy "members use cover readings" on public.cover_readings
   for all to authenticated using (public.is_farm_member(farm_id)) with check (public.is_farm_member(farm_id));
 
+-- How the reading was made: 'typed' (measured and entered by hand) or 'photo' (worked out from a photo).
+alter table public.cover_readings add column if not exists method text not null default 'typed';
+alter table public.cover_readings drop constraint if exists cover_readings_method_check;
+alter table public.cover_readings add constraint cover_readings_method_check check (method in ('typed', 'photo'));
+-- The paddock's latest reading carries its method too, so phones can tag it m (typed) or p (photo).
+alter table public.paddocks add column if not exists cover_method text;
+
 -- Where "predicted" grew from: the previous measurement, or the 1500 residual the day after grazing.
 alter table public.cover_readings add column if not exists start_cover integer;
 alter table public.cover_readings add column if not exists start_day date;
@@ -35,7 +42,7 @@ language plpgsql security invoker set search_path = ''
 as $$
 begin
   update public.paddocks p
-     set cover = new.cover, cover_date = new.day
+     set cover = new.cover, cover_date = new.day, cover_method = new.method
    where p.farm_id = new.farm_id and lower(p.name) = lower(new.paddock)
      and (p.cover_date is null or p.cover_date <= new.day);
   return new;
