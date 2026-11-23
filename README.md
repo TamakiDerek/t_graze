@@ -14,7 +14,8 @@ Android Chrome and has two jobs:
 The Paddocks tab is a sortable table (tap a heading; tap again to reverse): **Last grazed** (days ago),
 **Cover** (kg DM/ha: an estimate tagged `e`: 1500 the day after grazing, then growing each day at a rate that depends on the cover reached, from `GROWTH_CURVE` in `app/model.js` (100/day at 2000–2200, 5 less per 100 kg either side, minimum 30), or, once measured
 after the last grazing, the measured value from `paddocks.cover`/`cover_date` grown the same way since, tagged e.g.
-`m12` = measured 12 days ago) and **Interval** (days
+`m12` = measured 12 days ago. On the day a paddock is grazed it still shows the cover going in, dropping to
+the residual the next day) and **Interval** (days
 between the starts of the last two grazings; entries up to 3 days apart count as one grazing). The ✏️ button enters a measured cover
 (saved with the estimate it replaces), renames a paddock (the log follows) or removes it (only if unused). The tab also
 exports CSVs for the laptop side:

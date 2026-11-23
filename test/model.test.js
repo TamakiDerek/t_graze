@@ -77,7 +77,7 @@ test("paddock stats: days since last graze, visit-to-visit interval, cover", () 
   s.setSlot("2026-11-10 pm", 1, "A1");
   // A2: grazed once, yesterday
   s.setSlot("2026-11-20 pm", 0, "A2");
-  // B1: three visits, interval uses the last two; grazed today
+  // B1: three visits, interval uses the last two; being grazed today, so cover is still the going-in cover
   s.setSlot("2026-10-01 am", 0, "B1");
   s.setSlot("2026-10-25 pm", 0, "B1");
   s.setSlot("2026-11-21 am", 1, "B1");
@@ -94,7 +94,7 @@ test("paddock stats: days since last graze, visit-to-visit interval, cover", () 
   assert.deepEqual(full.Measured.coverFrom, { cover: 2650, date: "2026-11-09" });
   assert.deepEqual(byName.A1, { name: "A1", lastDays: 11, interval: 21, cover: 2404, coverKind: "e", coverAge: null });
   assert.deepEqual(byName.A2, { name: "A2", lastDays: 1, interval: null, cover: 1500, coverKind: "e", coverAge: null });
-  assert.deepEqual(byName.B1, { name: "B1", lastDays: 0, interval: 27, cover: 1500, coverKind: "e", coverAge: null });
+  assert.deepEqual(byName.B1, { name: "B1", lastDays: 0, interval: 27, cover: estimateCover(27), coverKind: "e", coverAge: null });
   assert.deepEqual(byName.Never, { name: "Never", lastDays: null, interval: null, cover: null, coverKind: null, coverAge: null });
   assert.deepEqual(byName.Measured, { name: "Measured", lastDays: 20, interval: null, cover: growCover(2650, 12), coverKind: "m", coverAge: 12 });
   assert.deepEqual(byName.Stale, { name: "Stale", lastDays: 22, interval: null, cover: 3179, coverKind: "e", coverAge: null });
@@ -102,7 +102,7 @@ test("paddock stats: days since last graze, visit-to-visit interval, cover", () 
   const rows = paddockStats(s, now);
   const names = (key, dir) => sortPaddockStats(rows, key, dir).map((r) => r.name);
   assert.deepEqual(names("lastDays", "asc"), ["B1", "A2", "A1", "Measured", "Stale", "Never"]);
-  assert.deepEqual(names("cover", "desc"), ["Measured", "Stale", "A1", "A2", "B1", "Never"]);
+  assert.deepEqual(names("cover", "desc"), ["B1", "Measured", "Stale", "A1", "A2", "Never"]);
   assert.deepEqual(names("interval", "asc"), ["A1", "B1", "A2", "Measured", "Never", "Stale"]);
   assert.deepEqual(names("name", "desc"), ["Stale", "Never", "Measured", "B1", "A2", "A1"]);
 });
@@ -161,4 +161,23 @@ test("measured cover: grows from the measurement and keeps the figure it replace
   assert.deepEqual([again.predicted, again.start_cover, again.start_day], [growCover(2450, 3), 2450, "2026-11-21"]);
   assert.equal(measureCover(s, "Fresh", 1800, now).predicted, null); // never grazed: nothing predicted
   assert.throws(() => measureCover(s, "G", "lots", now));
+});
+
+test("grazing day keeps the going-in cover; it drops to the residual the next day", () => {
+  const s = new Store(memory());
+  for (const p of ["P", "Q"]) s.addPaddock(p);
+  s.setSlot("2026-11-01 am", 0, "P");
+  s.setSlot("2026-11-21 am", 0, "P"); // grazed today
+  s.setSlot("2026-11-21 pm", 0, "Q"); // first ever grazing, today
+  const today = new Date(2026, 10, 21, 15, 0);
+  const tomorrow = new Date(2026, 10, 22, 9, 0);
+  const at = (now, name) => paddockStats(s, now).find((x) => x.name === name);
+  assert.deepEqual([at(today, "P").cover, at(today, "P").coverKind], [estimateCover(20), "e"]);
+  assert.deepEqual([at(tomorrow, "P").cover, at(tomorrow, "P").coverKind], [1500, "e"]);
+  assert.equal(at(today, "Q").cover, null); // nothing known before its first grazing
+  // measured going in (on the grazing day): shows as m0 that day, and is what the reading predicted against
+  const r = measureCover(s, "P", 3000, today);
+  assert.equal(r.predicted, estimateCover(20));
+  assert.deepEqual([at(today, "P").cover, at(today, "P").coverKind, at(today, "P").coverAge], [3000, "m", 0]);
+  assert.deepEqual([at(tomorrow, "P").cover, at(tomorrow, "P").coverKind], [1500, "e"]);
 });
