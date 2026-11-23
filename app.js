@@ -635,7 +635,9 @@ $("camera-input").addEventListener("change", async (event) => {
 });
 
 // tilt: { forward, side } degrees when taken with the app's camera, null from the phone's own camera.
+let photoSaving = false;
 async function savePhoto(file, tilt) {
+  photoSaving = true;
   const btn = $("camera");
   btn.disabled = true;
   try {
@@ -679,6 +681,7 @@ async function savePhoto(file, tilt) {
     const msg = err?.code === 1 ? "Location permission is needed to name photos." : err?.message || String(err);
     toast(`Photo not saved: ${msg}`, true);
   } finally {
+    photoSaving = false;
     renderGps();
   }
 }
@@ -832,11 +835,23 @@ if ("serviceWorker" in navigator) {
       });
     })
     .catch((err) => console.warn("service worker:", err));
-  let reloading = false;
+  // Never reload in the middle of something (camera open, a dialog, a photo saving, typing):
+  // wait until the app next goes off screen and reload then.
+  let newVersion = false;
+  const busy = () => photoSaving || document.querySelector("dialog[open]") || document.activeElement?.matches?.("input, textarea, select");
+  const reloadIfIdle = () => {
+    if (newVersion && !busy()) {
+      newVersion = false;
+      location.reload();
+    }
+  };
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (!hadController || reloading) return; // first install: nothing old to replace
-    reloading = true;
-    location.reload();
+    if (!hadController) return; // first install: nothing old to replace
+    newVersion = true;
+    reloadIfIdle();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") reloadIfIdle();
   });
 }
 // Show which version this phone is running (the service worker cache name, e.g. t_graze-v26).
