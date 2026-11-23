@@ -60,16 +60,35 @@
       <p class="hint">Tap a paddock's name to take it out of the grazing rotation (e.g. for hay) or put it back in. Tap a heading to sort; tap it again to reverse. Cover: on a grazing day it's the cover going in; it drops the next day. <b>e</b> = estimate (1500 the day after grazing, growing fastest, 50 a day, between 2000 and 2200, slower either side); <b>m12</b> = measured 12 days ago and grown since at the same rate (enter a measured cover with ✏️). Interval is the days between the start of the last two grazings (entries up to 3 days apart count as one grazing).</p>
       <dialog id="edit-dialog" class="edit-dialog">
         <form id="edit-form" method="dialog">
-          <p class="current-name">Current name<b id="edit-title"></b></p>
-          <label>New name <input id="edit-name" autocomplete="off" spellcheck="false" placeholder="leave blank to keep the name" enterkeyhint="next"></label>
-          <label>Area (ha)
-            <input id="edit-area" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="not known" enterkeyhint="next"></label>
-          <label>Cover measured today (kg DM/ha)
-            <input id="edit-cover" type="number" inputmode="numeric" min="0" max="10000" step="1" placeholder="leave blank if not measured" enterkeyhint="done"></label>
-          <p id="edit-note" class="hint"></p>
+          <h2 id="edit-title" class="edit-title"></h2>
+          <p class="cmp-head">Cover <small>kg DM/ha</small></p>
+          <div class="cmp">
+            <div class="cmp-now"><small>Current</small><b id="edit-cover-now"></b></div>
+            <label class="cmp-new"><small>New, measured today</small>
+              <input id="edit-cover" type="number" inputmode="numeric" min="0" max="10000" step="1" placeholder="e.g. 2345" enterkeyhint="done"></label>
+          </div>
+          <p class="hint">Enter a cover you've measured or worked out another way. It shows as <b>m0</b> and grows from today.</p>
+
+          <details id="edit-rare" class="rare">
+            <summary>Name, area or remove (seldom needed)</summary>
+            <p class="cmp-head">Name</p>
+            <div class="cmp">
+              <div class="cmp-now"><small>Current</small><b id="edit-name-now"></b></div>
+              <label class="cmp-new"><small>New</small>
+                <input id="edit-name" autocomplete="off" spellcheck="false" placeholder="keep" enterkeyhint="done"></label>
+            </div>
+            <p class="cmp-head">Area <small>ha</small></p>
+            <div class="cmp">
+              <div class="cmp-now"><small>Current</small><b id="edit-area-now"></b></div>
+              <label class="cmp-new"><small>New</small>
+                <input id="edit-area" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="keep" enterkeyhint="done"></label>
+            </div>
+            <p id="edit-note" class="hint"></p>
+            <button type="button" id="edit-remove" class="danger wide">Remove this paddock</button>
+          </details>
+
           <div class="row">
             <button type="submit" value="save">Save</button>
-            <button type="submit" value="remove" id="edit-remove" class="danger">Remove</button>
             <button type="submit" value="cancel" formnovalidate class="plain">Cancel</button>
           </div>
         </form>
