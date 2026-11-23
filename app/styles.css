@@ -197,3 +197,22 @@ h2 { font-size: 1rem; margin: 24px 0 4px; }
 .cval { margin-left: 3px; color: var(--muted); font-size: 0.9em; }
 .chart .avail { text-align: right; }
 .chart-total { white-space: nowrap; }
+
+/* Analysis: feed ahead */
+.feed-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: end; }
+.feed-inputs label { display: grid; gap: 2px; font-size: 0.85rem; color: var(--muted); }
+.feed-inputs input { padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink); font-size: 1rem; width: 100%; box-sizing: border-box; }
+.feed-demand { grid-column: 1 / -1; margin: 0; font-weight: 600; }
+.feed-chart { width: 100%; height: auto; display: block; margin-top: 8px; font-size: 9px; }
+.feed-chart .grid { stroke: var(--line); stroke-width: 0.5; }
+.feed-chart .ylab { fill: var(--muted); text-anchor: end; }
+.feed-chart .xlab { fill: var(--muted); }
+.feed-chart .afc { fill: none; stroke: var(--brand); stroke-width: 1.6; }
+.feed-chart .dot { fill: var(--brand); }
+.feed-chart .dot.short { fill: var(--warn); }
+.feed-days { width: 100%; border-collapse: collapse; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.feed-days th { text-align: left; color: var(--muted); font-weight: 500; padding: 2px 4px; }
+.feed-days td { padding: 2px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.feed-days td:first-child { white-space: nowrap; }
+.feed-days .num { text-align: right; }
+.feed-days tr.short td { color: var(--warn); }

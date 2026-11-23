@@ -104,6 +104,22 @@
       <div class="chart" id="cover-chart" role="img" aria-label="Cover by paddock"></div>
       <p class="hint">Bars run from 1000 to 4000 kg DM/ha (lines at 2000 and 3000); solid = measured, pale = estimate.
         <b>Avail.</b> = kg DM above the 1500 residual: (cover − 1500) × ha. A dash means the paddock's area isn't known.</p>
+
+      <h2>Feed ahead: 3 weeks</h2>
+      <form id="feed-form" class="feed-inputs">
+        <label>Cows <input id="feed-cows" type="number" inputmode="numeric" min="0" step="1"></label>
+        <label>kg DM/cow/day <input id="feed-per" type="number" inputmode="decimal" min="0" step="0.5"></label>
+        <p id="feed-demand" class="feed-demand"></p>
+      </form>
+      <svg id="feed-chart" class="feed-chart" viewBox="0 0 340 180" role="img" aria-label="Average farm cover over the next 3 weeks"></svg>
+      <p id="feed-note" class="hint"></p>
+      <table class="feed-days">
+        <thead><tr><th>Day</th><th class="num">Cover</th><th class="num">Avail. kg</th><th>Grazed</th></tr></thead>
+        <tbody id="feed-rows"></tbody>
+      </table>
+      <p class="hint">Each day every paddock grows on the cover curve, then the herd eats cows × kg, taking the highest
+        paddock down to 1500 before moving on (… = part eaten, finished the next day). Cover = average over the
+        paddocks with a known cover and area.</p>
     </section>
   </main>
 

@@ -204,6 +204,66 @@ export function coverRanking(store, now) {
     .sort((a, b) => b.cover - a.cover || a.name.localeCompare(b.name, undefined, { numeric: true }));
 }
 
+/**
+ * Feed budget ahead: day by day, every paddock grows on the curve, then the herd eats cows x perCow kg DM,
+ * taking the highest-cover paddock down to GRAZE_TO before moving to the next (a part-eaten paddock is
+ * finished first the next day). A paddock eaten out sits at GRAZE_TO the next day and grows from the day
+ * after, as in the cover estimate. Paddocks already grazed today count as eaten. Only paddocks with both a
+ * cover and an area take part.
+ * Returns { demand, area, excluded: [names], days: [{ date, afc, available, grazed: [{ name, finished }], shortfall }] }
+ * with days[0] = today (before any forecast eating). afc = average farm cover, kg DM/ha.
+ */
+export function forecastFeed(store, now, { cows, perCow, days = 21, curve = GROWTH_CURVE } = {}) {
+  const demand = Math.max(0, (Number(cows) || 0) * (Number(perCow) || 0));
+  const pads = [];
+  const excluded = [];
+  for (const r of paddockStats(store, now)) {
+    const area = store.area(r.name);
+    if (r.cover == null || area == null) {
+      excluded.push(r.name);
+      continue;
+    }
+    const today = r.lastDays === 0;
+    pads.push({ name: r.name, area, cover: today ? GRAZE_TO : r.cover, grazedOn: today ? 0 : -Infinity });
+  }
+  const area = pads.reduce((s, p) => s + p.area, 0);
+  const start = dayNumber(isoDate(now));
+  const snapshot = (d, grazed, shortfall) => ({
+    date: dayIso(start + d),
+    afc: area ? Math.round(pads.reduce((s, p) => s + p.cover * p.area, 0) / area) : null,
+    available: Math.round(pads.reduce((s, p) => s + Math.max(0, p.cover - GRAZE_TO) * p.area, 0)),
+    grazed,
+    shortfall: Math.round(shortfall),
+  });
+  const out = [snapshot(0, [], 0)];
+  let open = null; // paddock the herd is part way through
+  for (let d = 1; d <= days; d++) {
+    for (const p of pads) if (p !== open && d >= p.grazedOn + 2) p.cover += growthRate(p.cover, curve);
+    let need = demand;
+    const grazed = [];
+    while (need > 0.5) {
+      if (!open) {
+        open = pads.filter((p) => p.cover > GRAZE_TO).sort((a, b) => b.cover - a.cover)[0] ?? null;
+        if (!open) break; // nothing left above the residual
+      }
+      const avail = (open.cover - GRAZE_TO) * open.area;
+      if (avail <= need) {
+        need -= avail;
+        open.cover = GRAZE_TO;
+        open.grazedOn = d;
+        grazed.push({ name: open.name, finished: true });
+        open = null;
+      } else {
+        open.cover -= need / open.area;
+        need = 0;
+        grazed.push({ name: open.name, finished: false });
+      }
+    }
+    out.push(snapshot(d, grazed, need > 0.5 ? need : 0));
+  }
+  return { demand, area: Math.round(area * 100) / 100, excluded, days: out };
+}
+
 /** Default direction when a column is first tapped: longest since grazed first, cover largest first, interval shortest first. */
 export const SORT_DEFAULTS = { name: "asc", lastDays: "desc", cover: "desc", interval: "asc" };
 

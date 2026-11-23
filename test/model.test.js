@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store, slots, photoName, logCsv, paddockStats, sortPaddockStats, growthRate, estimateCover, measureCover, COVER_MODEL, growCover, coverRanking } from "../app/model.js";
+import { Store, slots, photoName, logCsv, paddockStats, sortPaddockStats, growthRate, estimateCover, measureCover, COVER_MODEL, growCover, coverRanking, forecastFeed } from "../app/model.js";
 
 const memory = () => {
   const m = new Map();
@@ -215,4 +215,38 @@ test("cover ranking: highest first, available = (cover - 1500) x ha, never below
   s.data.covers = { Lo: { value: 1200, date: "2026-11-21" } }; // measured below the residual: still 0, not negative
   s.data.log = {};
   assert.equal(coverRanking(s, new Date(2026, 10, 21, 9, 0)).find((r) => r.name === "Lo").available, 0);
+});
+
+test("feed forecast: grows, eats the top paddock first, carries part-eaten paddocks over", () => {
+  const s = new Store(memory());
+  for (const p of ["Big", "Mid", "NoArea"]) s.addPaddock(p);
+  const now = new Date(2026, 10, 21, 9, 0);
+  s.data.covers = { Big: { value: 3000, date: "2026-11-21" }, Mid: { value: 2500, date: "2026-11-21" }, NoArea: { value: 2000, date: "2026-11-21" } };
+  s.setArea("Big", 2);
+  s.setArea("Mid", 2);
+  const f = forecastFeed(s, now, { cows: 100, perCow: 20, days: 3 }); // 2000 kg a day
+  assert.equal(f.demand, 2000);
+  assert.deepEqual(f.excluded, ["NoArea"]);
+  assert.equal(f.days[0].afc, 2750);
+  assert.equal(f.days[0].available, 3000 + 2000);
+  // day 1: both grow, then Big is part eaten (it has ~3100+ available)
+  const big1 = 3000 + growthRate(3000);
+  const mid1 = 2500 + growthRate(2500);
+  assert.deepEqual(f.days[1].grazed, [{ name: "Big", finished: false }]);
+  assert.equal(f.days[1].available, Math.round((big1 - 1500) * 2 - 2000 + (mid1 - 1500) * 2));
+  // day 2: Big (not growing while open) is finished, then Mid is started
+  assert.deepEqual(f.days[2].grazed.map((g) => [g.name, g.finished]), [["Big", true], ["Mid", false]]);
+  assert.equal(f.days[0].date, "2026-11-21");
+  assert.equal(f.days[3].date, "2026-11-24");
+});
+
+test("feed forecast: reports a shortfall when nothing is left above the residual", () => {
+  const s = new Store(memory());
+  s.addPaddock("Only");
+  s.setArea("Only", 1);
+  s.data.covers = { Only: { value: 1600, date: "2026-11-21" } };
+  const f = forecastFeed(s, new Date(2026, 10, 21, 9, 0), { cows: 10, perCow: 20, days: 2 });
+  assert.equal(f.days[1].grazed[0].finished, true);
+  assert.ok(f.days[1].shortfall > 0);
+  assert.equal(f.days[2].shortfall, 200); // eaten out yesterday: sits at 1500, nothing to eat
 });

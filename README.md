@@ -19,7 +19,10 @@ the residual the next day) and **Interval** (days
 between the starts of the last two grazings; entries up to 3 days apart count as one grazing). The ✏️ button shows and sets the paddock's area (ha), enters a measured cover
 (saved with the estimate it replaces), renames a paddock (the log follows) or removes it (only if unused). The **Analysis** tab charts every paddock with a known cover, highest first, squeezed so about 50 fit
 on one screen: a bar from 1000 to 4000 kg DM/ha (solid = measured, pale = estimate) and the feed available,
-`(cover - 1500) × ha` kg DM (never below 0), with the farm total.
+`(cover - 1500) × ha` kg DM (never below 0), with the farm total. Below it, **Feed ahead** forecasts the average farm cover for 3 weeks: enter cows and
+kg DM/cow/day (default 160 × 20, remembered on the phone); each day every paddock grows on the curve, then
+the herd eats from the highest paddock down to 1500 before moving on. A day table lists the paddocks grazed and
+any shortfall.
 
 The Paddocks tab also
 exports CSVs for the laptop side:
