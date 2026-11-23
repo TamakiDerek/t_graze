@@ -273,8 +273,8 @@ function renderPaddocks() {
       cells[2].append(String(r.cover), tag);
     }
     cells[3].textContent = num(r.interval);
-    tr.querySelector("button").dataset.name = r.name;
-    tr.querySelector("button").setAttribute("aria-label", `Edit ${r.name}`);
+    tr.querySelector("button.edit").dataset.name = r.name;
+    tr.querySelector("button.edit").setAttribute("aria-label", `Edit ${r.name}`);
     return tr;
   });
   if (!rows.length) {
@@ -312,10 +312,22 @@ $("paddock-rows").addEventListener("click", (event) => {
   if (!btn) return;
   editing = btn.dataset.name;
   const uses = store.paddockUses(editing);
+  const stat = paddockStats(store, new Date()).find((r) => r.name === editing);
   $("edit-title").textContent = editing;
+  const coverNow = $("edit-cover-now");
+  coverNow.replaceChildren(stat?.cover == null ? "not known" : String(stat.cover));
+  if (stat?.cover != null) {
+    const tag = document.createElement("span");
+    tag.className = `tag ${stat.coverKind}`;
+    tag.textContent = stat.coverKind === "m" ? `m${stat.coverAge}` : "e";
+    coverNow.append(tag);
+  }
+  $("edit-name-now").textContent = editing;
+  $("edit-area-now").textContent = store.area(editing) == null ? "not known" : `${store.area(editing)}`;
   $("edit-name").value = "";
   $("edit-cover").value = "";
-  $("edit-area").value = store.area(editing) ?? "";
+  $("edit-area").value = "";
+  $("edit-rare").open = false;
   $("edit-remove").disabled = uses > 0;
   $("edit-note").textContent = uses
     ? `Used in the grazing log ${uses} time(s), so it can be renamed (the log follows) but not removed.`
@@ -323,8 +335,23 @@ $("paddock-rows").addEventListener("click", (event) => {
   $("edit-dialog").showModal();
 });
 
+$("edit-remove").addEventListener("click", () => {
+  if (!editing || !confirm(`Remove "${editing}" from the paddock list?`)) return;
+  try {
+    store.removePaddock(editing);
+  } catch (err) {
+    toast(err.message, true);
+    return;
+  }
+  cloud.paddockRemoved(editing);
+  toast(`Removed "${editing}"`);
+  $("edit-dialog").close();
+  renderPaddockOptions();
+  renderPaddocks();
+});
+
 $("edit-form").addEventListener("submit", (event) => {
-  const action = event.submitter?.value;
+  const action = event.submitter?.value ?? "save"; // Enter in a box = Save
   if (action === "cancel" || !editing) return;
   try {
     if (action === "save") {
@@ -341,11 +368,10 @@ $("edit-form").addEventListener("submit", (event) => {
         if (name !== editing) cloud.paddockRenamed(editing, name);
         done.push(`Renamed to "${name}" (grazing log updated)`);
       }
-      const oldArea = store.area(name);
       const newArea = areaText === "" ? null : Math.round(Number(areaText) * 100) / 100;
-      if (newArea !== oldArea) {
+      if (newArea != null && newArea !== store.area(name)) { // blank = keep
         cloud.paddockAreaSet(name, store.setArea(name, newArea));
-        done.push(newArea == null ? `Area cleared for ${name}` : `${name} is ${newArea} ha`);
+        done.push(`${name} is ${newArea} ha`);
       }
       if (coverText) {
         const reading = measureCover(store, name, coverText, new Date());
@@ -354,14 +380,6 @@ $("edit-form").addEventListener("submit", (event) => {
       }
       if (!done.length) return;
       toast(done.join(". "));
-    } else if (action === "remove") {
-      if (!confirm(`Remove "${editing}" from the paddock list?`)) {
-        event.preventDefault();
-        return;
-      }
-      store.removePaddock(editing);
-      cloud.paddockRemoved(editing);
-      toast(`Removed "${editing}"`);
     }
   } catch (err) {
     event.preventDefault(); // keep the dialog open so the name can be fixed
