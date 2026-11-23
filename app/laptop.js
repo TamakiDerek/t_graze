@@ -234,6 +234,27 @@ async function choose(file) {
     toast(`Couldn't load the photo: ${err.message}`, true);
   }
 }
+$("pick-delete").addEventListener("click", async () => {
+  if (!chosen) return;
+  const file = chosen.file;
+  if (!confirm(`Delete ${file} from the farm's database?\n\nAny cover already accepted from it stays. This can't be undone (the phone that took it may still have the full-size copy).`)) return;
+  try {
+    // Straight away (not queued): the picture, then the row. A missing picture is fine.
+    await cloud.request("/storage/v1/object/photos", { method: "DELETE", body: { prefixes: [chosen.storage_path] } });
+    await cloud.request(`/rest/v1/photos?farm_id=eq.${cloud.state.farmId}&file=eq.${encodeURIComponent(file)}`, {
+      method: "DELETE", headers: { Prefer: "return=minimal" },
+    });
+    store.removePhoto(file);
+    toast(`Deleted ${file}`);
+    chosen = null;
+    $("pick").hidden = true;
+    $("pick-none").hidden = false;
+    await loadPhotos();
+  } catch (err) {
+    toast(`Not deleted: ${err.message}`, true);
+  }
+});
+
 $("pick-close").addEventListener("click", () => {
   chosen = null;
   markChosen();

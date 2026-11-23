@@ -2,6 +2,7 @@
 // queued here, and pushed when there's signal. Uses Supabase's plain HTTP APIs (no SDK), so the
 // app still has no dependencies and loads offline.
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js";
+import { photoCutoff } from "./model.js";
 
 const STATE_KEY = "t_graze_sync";
 // Herd size and intake for the feed ahead. Kept here for offline use; the farm's values win on sync.
@@ -327,6 +328,7 @@ export class Cloud {
       await this.pushLog();
       await this.pushCovers();
       await this.pushFeed();
+      await this.expireOldPhotos();
       await this.pushPhotos();
       await this.pushPhotoDeletes();
       await this.pull();
@@ -426,6 +428,30 @@ export class Cloud {
     });
     this.state.feedDirty = false;
     this.saveState();
+  }
+
+  /**
+   * Photos are kept 3 days (PHOTO_KEEP_DAYS): older ones are deleted from this phone's list, its
+   * upload queue, and the farm's database (picture and row). The cover readings made from them stay.
+   * The full-size copies in the phone's Download folder are the phone owner's to keep or delete.
+   */
+  async expireOldPhotos(now = new Date()) {
+    const cutoff = photoCutoff(now);
+    for (const p of [...this.store.photos]) {
+      if (new Date(p.taken) < cutoff) {
+        this.store.removePhoto(p.file);
+        await dropPhoto(p.file);
+      }
+    }
+    await this.countPhotos();
+    const farm = this.state.farmId;
+    const old = await this.request(
+      `/rest/v1/photos?select=file,storage_path&farm_id=eq.${farm}&taken_at=lt.${encodeURIComponent(cutoff.toISOString())}`);
+    if (!old.length) return;
+    await this.request("/storage/v1/object/photos", { method: "DELETE", body: { prefixes: old.map((p) => p.storage_path) } });
+    await this.request(`/rest/v1/photos?farm_id=eq.${farm}&taken_at=lt.${encodeURIComponent(cutoff.toISOString())}`, {
+      method: "DELETE", headers: { Prefer: "return=minimal" },
+    });
   }
 
   async pushPhotoDeletes() {

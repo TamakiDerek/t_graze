@@ -19,7 +19,9 @@ Android Chrome and has two jobs:
   (e.g. `2026_1117_8R9C+W2.jpg`). A second photo with the same name gets `_2`, `_3` and so on. The
   GPS position, altitude, accuracy and capture time are written into the photo's EXIF. The copy uploaded to the
   farm's database is smaller (`photo-size.js`: 1400 px on the long side, quality 0.7, about 0.5 MB); the laptop page offers to
-  shrink any photo that went up full size before that.
+  shrink any photo that went up full size before that. Photos are deleted from the app and the database 3 days after
+  the day they were taken (`PHOTO_KEEP_DAYS`, done by whichever phone or laptop syncs); cover readings made from them
+  stay. The laptop page also has 🗑 Delete this photo.
   📷 opens the app's own camera with a guide for a **standard photo**: phone at 1 m (belt height), no shadow,
   step forward so the toe is at the bottom, tilted forward about 35° from straight down (the tilt meter goes
   green at 28-42°, level side to side). The tilt is written into the EXIF description and kept with the photo.

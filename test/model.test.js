@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Store, slots, photoName, logCsv, paddockStats, sortPaddockStats, growthRate, estimateCover, measureCover, COVER_MODEL, growCover, coverRanking, forecastFeed, photoDayCover, forecastBand, forecastRange } from "../app/model.js";
+import { Store, slots, photoName, logCsv, paddockStats, sortPaddockStats, growthRate, estimateCover, measureCover, COVER_MODEL, growCover, coverRanking, forecastFeed, photoDayCover, forecastBand, forecastRange, photoCutoff } from "../app/model.js";
 
 const memory = () => {
   const m = new Map();
@@ -309,4 +309,11 @@ test("feed-ahead fan: none today, widening each day; range is today ±500 unless
   assert.deepEqual(forecastRange(band), { lo: 1700, hi: 2700 });
   assert.deepEqual(forecastRange([{ afc: 2200 }, { afc: 1550 }]), { lo: 1500, hi: 2700 }); // line went below: widened
   assert.equal(forecastRange([]), null);
+});
+
+test("photos go 3 days after the day they were taken", () => {
+  const cutoff = photoCutoff(new Date(2026, 10, 27, 7, 30));   // morning of the 27th
+  assert.equal(cutoff.getTime(), new Date(2026, 10, 25).getTime());
+  assert.ok(new Date(2026, 10, 24, 23, 59) < cutoff);           // taken on the 24th: gone on the 27th
+  assert.ok(!(new Date(2026, 10, 25, 6, 0) < cutoff));          // taken on the 25th: kept until the 28th
 });

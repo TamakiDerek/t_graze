@@ -203,6 +203,14 @@ export function photoDayCover(photos, paddock, day) {
   return { cover: Math.round(total / same.length), count: same.length };
 }
 
+// Photos are deleted (app and database) 3 days after the day they were taken: by then they're old
+// news. A photo taken on the 24th goes on the 27th. Cover readings made from them are kept.
+export const PHOTO_KEEP_DAYS = 3;
+/** Photos taken before this moment (local midnight, PHOTO_KEEP_DAYS - 1 days before today) are deleted. */
+export function photoCutoff(now, keepDays = PHOTO_KEEP_DAYS) {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() - (keepDays - 1));
+}
+
 // Paddocks are grazed down to this; above it is feed the cows can eat.
 export const GRAZE_TO = COVER_AFTER_GRAZING;
 
