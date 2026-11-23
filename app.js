@@ -489,18 +489,153 @@ function freshFix() {
 }
 
 // ---------- camera ----------
+// Standard photo: phone at 1 m, no shadow, toe at the bottom, tilted forward TILT_TARGET degrees from
+// straight down. The app's own camera screen shows a tilt meter that goes green inside the band.
+const TILT_TARGET = 35; // degrees from straight down (0 = looking at your feet, 90 = looking at the horizon)
+const TILT_BAND = 7; // ± degrees that count as "good"
+const SIDE_LEAN_MAX = 10; // ± degrees of sideways lean allowed
+let camStream = null;
+let camTilt = null; // { forward, side } from the phone's tilt sensor, or null if it has none
+
 $("camera").addEventListener("click", () => {
   if (!fixIsFresh(lastFix)) {
     toast("No GPS fix yet - photos must be geolocated.", true);
     return;
   }
+  openCamera();
+});
+
+async function openCamera() {
+  camTilt = null;
+  $("cam-error").hidden = true;
+  $("cam-frame").hidden = true;
+  $("cam-shoot").disabled = true;
+  $("cam-band").style.left = `${((TILT_TARGET - TILT_BAND) / 90) * 100}%`;
+  $("cam-band").style.width = `${((2 * TILT_BAND) / 90) * 100}%`;
+  showTilt();
+  $("cam").showModal();
+  window.addEventListener("deviceorientation", onTilt);
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 4032 }, height: { ideal: 3024 } },
+    });
+    if (!$("cam").open) return stopCamera();
+    const video = $("cam-video");
+    video.srcObject = camStream;
+    await video.play().catch(() => {});
+    fitFrame();
+    $("cam-shoot").disabled = false;
+  } catch (err) {
+    $("cam-error").textContent = `Can't open the camera here (${err.name === "NotAllowedError" ? "camera permission is blocked" : err.message || err.name}). Tap "Phone camera" to use the phone's own camera instead.`;
+    $("cam-error").hidden = false;
+  }
+}
+
+// Keep the "toe here" outline on the picture itself (the preview is letterboxed to show the whole photo).
+function fitFrame() {
+  const video = $("cam-video");
+  const frame = $("cam-frame");
+  if (!video.videoWidth) return void (frame.hidden = true);
+  frame.hidden = false;
+  const box = $("cam-view").getBoundingClientRect();
+  const scale = Math.min(box.width / video.videoWidth, box.height / video.videoHeight);
+  const w = video.videoWidth * scale;
+  const h = video.videoHeight * scale;
+  Object.assign(frame.style, { left: `${(box.width - w) / 2}px`, top: `${(box.height - h) / 2}px`, width: `${w}px`, height: `${h}px` });
+}
+$("cam-video").addEventListener("resize", fitFrame);
+window.addEventListener("resize", () => $("cam").open && fitFrame());
+
+function stopCamera() {
+  window.removeEventListener("deviceorientation", onTilt);
+  camStream?.getTracks().forEach((t) => t.stop());
+  camStream = null;
+  $("cam-video").srcObject = null;
+}
+$("cam").addEventListener("close", stopCamera);
+$("cam-cancel").addEventListener("click", () => $("cam").close());
+$("cam-native").addEventListener("click", () => {
+  $("cam").close();
   $("camera-input").click();
 });
+
+function onTilt(event) {
+  if (event.beta == null) return;
+  // Phone upright in portrait: beta = forward tilt (0 = screen flat facing up, camera pointing straight down).
+  camTilt = { forward: Math.round(event.beta), side: Math.round(event.gamma ?? 0) };
+  showTilt();
+}
+
+function showTilt() {
+  const shoot = $("cam-shoot");
+  const say = $("cam-say");
+  if (!camTilt) {
+    $("cam-angle").textContent = "--°";
+    $("cam-needle").hidden = true;
+    say.textContent = "No tilt reading yet. Aim about a third of the way up from straight down.";
+    shoot.classList.remove("good");
+    return;
+  }
+  const { forward, side } = camTilt;
+  $("cam-angle").textContent = `${forward}°`;
+  $("cam-needle").hidden = false;
+  $("cam-needle").style.left = `${(Math.min(90, Math.max(0, forward)) / 90) * 100}%`;
+  let good = false;
+  if (forward < TILT_TARGET - TILT_BAND) say.textContent = "Tilt forward more";
+  else if (forward > TILT_TARGET + TILT_BAND) say.textContent = "Tilt down more";
+  else if (Math.abs(side) > SIDE_LEAN_MAX) say.textContent = "Level it side to side";
+  else {
+    say.textContent = "Good: take it";
+    good = true;
+  }
+  shoot.classList.toggle("good", good);
+  $("cam").classList.toggle("good", good);
+}
+
+$("cam-shoot").addEventListener("click", async () => {
+  const tilt = camTilt ? { ...camTilt } : null;
+  $("cam-shoot").disabled = true;
+  let blob;
+  try {
+    blob = await grabFrame();
+  } catch (err) {
+    $("cam-shoot").disabled = false;
+    $("cam-error").textContent = `Couldn't take the photo: ${err.message || err}`;
+    $("cam-error").hidden = false;
+    return;
+  }
+  $("cam").close();
+  await savePhoto(blob, tilt);
+});
+
+async function grabFrame() {
+  const track = camStream?.getVideoTracks()[0];
+  if (!track) throw new Error("the camera isn't running");
+  if ("ImageCapture" in window) {
+    try {
+      return await new ImageCapture(track).takePhoto(); // full camera resolution where the phone allows it
+    } catch {
+      // fall back to a frame from the preview
+    }
+  }
+  const video = $("cam-video");
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext("2d").drawImage(video, 0, 0);
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("could not read the camera"))), "image/jpeg", 0.92));
+}
 
 $("camera-input").addEventListener("change", async (event) => {
   const file = event.target.files?.[0];
   event.target.value = ""; // so the same file can trigger change again
-  if (!file) return;
+  if (file) await savePhoto(file, null);
+});
+
+// tilt: { forward, side } degrees when taken with the app's camera, null from the phone's own camera.
+async function savePhoto(file, tilt) {
   const btn = $("camera");
   btn.disabled = true;
   try {
@@ -520,7 +655,8 @@ $("camera-input").addEventListener("change", async (event) => {
     const jpeg = await new Promise((resolve, reject) =>
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("could not encode photo"))), "image/jpeg", 0.92));
     const tagged = insertExif(new Uint8Array(await jpeg.arrayBuffer()), {
-      lat, lng, altitude, accuracy, time, description: name.replace(/\.jpg$/, ""),
+      lat, lng, altitude, accuracy, time,
+      description: name.replace(/\.jpg$/, "") + (tilt ? ` tilt ${tilt.forward} deg` : ""),
     });
     const photo = new Blob([tagged], { type: "image/jpeg" });
     download(photo, name);
@@ -533,10 +669,11 @@ $("camera-input").addEventListener("change", async (event) => {
       lng: Number(lng.toFixed(7)),
       accuracy: Math.round(accuracy * 10) / 10,
       altitude: altitude == null ? null : Math.round(altitude * 10) / 10,
+      tilt: tilt ? tilt.forward : null,
     };
     store.addPhoto(meta);
     await cloud.photoTaken(meta, photo);
-    toast(`Saved ${name}`);
+    toast(`Saved ${name}${tilt ? ` (tilt ${tilt.forward}°)` : ""}`);
     if (!$("tab-photos").hidden) renderPhotos();
   } catch (err) {
     const msg = err?.code === 1 ? "Location permission is needed to name photos." : err?.message || String(err);
@@ -544,7 +681,7 @@ $("camera-input").addEventListener("change", async (event) => {
   } finally {
     renderGps();
   }
-});
+}
 
 async function renderPhotos() {
   const pending = new Set(await pendingPhotoFiles().catch(() => []));
