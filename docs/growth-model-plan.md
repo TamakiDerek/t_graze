@@ -51,8 +51,9 @@ The estimate stays offline-capable.
    that day. The ratio (actual growth ÷ predicted growth since the last anchor) feeds `farm_factor`.
    Use a rolling average of recent ratios, weighted toward the newest. This gives "if one paddock is growing
    really well, the others probably are."
-3. Keep the predicted value next to each measurement in the database, so the factors can be refitted later
-   from real data. That data is what the trials are for.
+3. Done (2026-11-23): every measurement entered with ✏️ is stored in `cover_readings` next to the app's
+   `predicted` cover, `days_since_grazed` and `model` id (`COVER_MODEL` in `app/model.js`; change it whenever
+   the estimate rule changes). Those pairs are the data for refitting the factors.
 
 ## Code changes this will need
 
