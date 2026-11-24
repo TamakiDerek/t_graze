@@ -31,6 +31,8 @@ body.with-phone .phone {
 .plist .c { font-variant-numeric: tabular-nums; font-weight: 600; }
 .plist .ok { color: var(--ok); }
 .key { display: inline-block; width: 12px; height: 12px; border: 2px solid; margin: 0 4px 0 8px; vertical-align: -1px; }
+.key.new { border-color: #ffffff; background: rgba(255, 255, 255, 0.35); box-shadow: 0 0 0 1px #888; }
+.waiting { margin: 6px 0 10px; padding: 6px 10px; border-left: 4px solid #ffd23f; background: rgba(255, 210, 63, 0.15); font-weight: 600; }
 .key.est { border-color: #ffd23f; background: rgba(255, 210, 63, 0.3); }
 .key.ok { border-color: #6ee7a0; background: rgba(110, 231, 160, 0.35); }
 /* Map labels: the cover beside each square */

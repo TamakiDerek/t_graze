@@ -14,11 +14,12 @@ Android Chrome and has two jobs:
   one to see the photo, choose the paddock and accept or change the cover: that sets `photos.paddock` /
   `cover_accepted` and adds a `cover_readings` row with method `photo` for that paddock on the photo's day. Several photos accepted for
   the same paddock on the same day are averaged into that one reading (`photoDayCover`).
-  Estimates are made automatically: an after-insert trigger on `photos` (`supabase/estimate.sql`) calls the
-  `estimate-cover` Edge Function (`supabase/functions/estimate-cover/`), which has Claude compare the photo
-  with the active `reference_photos` (images in the private `reference` bucket) and writes `cover_estimate`
-  and `estimate_by`. The laptop page nudges it on opening to catch up. It needs the Edge Function secret
-  `ANTHROPIC_API_KEY`; without it, photos simply wait with no estimate.
+  New photos show as white squares labelled `?` with a count of how many are waiting; for now their covers
+  are estimated by hand (Claude by eye, on request) and written to `cover_estimate` / `estimate_by`.
+  An automatic estimator is built but parked: the `estimate-cover` Edge Function
+  (`supabase/functions/estimate-cover/`, deployed, idle without the `ANTHROPIC_API_KEY` secret) compares a
+  photo with the active `reference_photos`; `supabase/estimate.sql` adds the trigger that would call it on
+  each new photo (not installed). It waits for calibrated comparison photos and a cheaper model.
   The laptop signs in and gets approved like a phone. **📱 Show phone** puts the phone app beside the map in a
   phone-sized frame (same farm and sign-in), for demonstrating it on a call; the choice is remembered. The map opens on
   the farm's home view (`farms.map_lat`/`map_lng`/`map_zoom`): ⌂ goes back to it, 📌 saves the current view as it.

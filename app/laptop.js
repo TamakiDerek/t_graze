@@ -64,19 +64,6 @@ async function start() {
   try { phoneOn = localStorage.getItem(PHONE_KEY) === "1"; } catch {}
   showPhone(phoneOn);
   await loadPhotos();
-  catchUpEstimates();
-}
-
-// New photos get a cover estimate on the server as they upload (supabase/functions/estimate-cover).
-// Opening the laptop page also nudges it, in case one was missed; if any were done, redraw.
-async function catchUpEstimates() {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/estimate-cover`, { method: "POST" });
-    const out = await res.json();
-    if (out.done > 0) await loadPhotos();
-  } catch {
-    // estimates are a nicety; the page works without them
-  }
 }
 
 async function fetchPhotos() {
@@ -284,6 +271,10 @@ function drawList() {
     return li;
   });
   $("photo-list").replaceChildren(...items);
+  const waiting = photos.filter((p) => coverOf(p) == null).length;
+  $("waiting-count").hidden = !waiting;
+  $("waiting-count").textContent = waiting === 1 ? "1 new photo is waiting for a cover estimate."
+    : `${waiting} new photos are waiting for a cover estimate.`;
   markChosen();
 }
 $("photo-list").addEventListener("click", (e) => {
