@@ -88,8 +88,46 @@ function goHome() {
   else map.setView(mid, 16);
 }
 
+// Where the paddocks are: one point per photo ever given a paddock (supabase/paddock-points.sql).
+let points = [];
+async function fetchPoints() {
+  points = await cloud.request(
+    `/rest/v1/paddock_points?select=photo_file,paddock,latitude,longitude&farm_id=eq.${cloud.state.farmId}`);
+}
+function rememberPoint(p, paddock) {
+  return cloud.request("/rest/v1/paddock_points?on_conflict=farm_id,photo_file", {
+    method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: { farm_id: cloud.state.farmId, photo_file: p.file, paddock, latitude: p.latitude, longitude: p.longitude, taken_at: p.taken_at },
+  });
+}
+
+// First guess at a photo's paddock: the nearest earlier photos given a paddock (within GUESS_RADIUS_M),
+// the closest counting most. Null if none are near enough.
+const GUESS_RADIUS_M = 80;
+function metresBetween(a, b) {
+  const k = 111_320; // metres per degree of latitude
+  const dy = (a.latitude - b.latitude) * k;
+  const dx = (a.longitude - b.longitude) * k * Math.cos((a.latitude * Math.PI) / 180);
+  return Math.hypot(dx, dy);
+}
+function guessPaddock(photo) {
+  const known = new Map(points.map((q) => [q.photo_file, q]));
+  for (const p of photos) if (p.paddock) known.set(p.file, { photo_file: p.file, paddock: p.paddock, latitude: p.latitude, longitude: p.longitude });
+  const near = [...known.values()]
+    .filter((q) => q.photo_file !== photo.file && store.paddocks.includes(q.paddock))
+    .map((q) => ({ paddock: q.paddock, d: metresBetween(photo, q) }))
+    .filter((q) => q.d <= GUESS_RADIUS_M)
+    .sort((a, b) => a.d - b.d)
+    .slice(0, 5);
+  if (!near.length) return null;
+  const votes = new Map();
+  for (const q of near) votes.set(q.paddock, (votes.get(q.paddock) ?? 0) + 1 / (q.d + 5));
+  const [paddock] = [...votes.entries()].sort((a, b) => b[1] - a[1])[0];
+  return { paddock, metres: Math.round(near.find((q) => q.paddock === paddock).d), others: new Set(near.map((q) => q.paddock)).size > 1 };
+}
+
 async function loadPhotos() {
-  await Promise.all([fetchPhotos(), fetchHome().catch(() => (home = null))]);
+  await Promise.all([fetchPhotos(), fetchHome().catch(() => (home = null)), fetchPoints().catch(() => (points = []))]);
   drawMap();
   drawList();
   checkSizes().catch((err) => console.warn("photo sizes:", err));
@@ -299,7 +337,13 @@ async function choose(file) {
   $("pick-sub").textContent = `${when(chosen.taken_at)} · ±${Math.round(chosen.accuracy_m ?? 0)} m`;
   // A typing box with suggestions: "D" lists only the D paddocks (a dropdown jumps to D01 at the bottom).
   $("paddock-names").replaceChildren(...store.paddocks.map((n) => new Option(n)));
-  $("pick-paddock").value = chosen.paddock ?? "";
+  const guess = chosen.paddock ? null : guessPaddock(chosen);
+  $("pick-paddock").value = chosen.paddock ?? guess?.paddock ?? "";
+  $("pick-guess").hidden = !guess;
+  if (guess) {
+    $("pick-guess").textContent = `Guessed from nearby photos: the closest ${guess.paddock} photo is ${guess.metres} m away` +
+      (guess.others ? " (another paddock is close too, so check the fence line)." : ".");
+  }
   $("pick-cover").value = coverOf(chosen) ?? "";
   $("pick-est").textContent = chosen.cover_estimate == null ? "No estimate yet: type the cover."
     : `Estimated ${chosen.cover_estimate} (${chosen.estimate_by ?? "estimate"}).`;
@@ -356,6 +400,9 @@ $("pick-close").addEventListener("click", () => {
   $("pick-none").hidden = false;
 });
 
+// Clicking into the paddock box selects the guess, so typing replaces it.
+$("pick-paddock").addEventListener("focus", (e) => e.target.select());
+
 $("pick-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!chosen) return;
@@ -377,7 +424,8 @@ $("pick-form").addEventListener("submit", async (event) => {
       method: "PATCH", headers: { Prefer: "return=minimal" },
       body: { paddock, cover_accepted: cover, accepted_at },
     });
-    await fetchPhotos(); // fresh, so photos accepted on the other laptop count too
+    await rememberPoint(chosen, paddock).catch((err) => console.warn("paddock point:", err));
+    await Promise.all([fetchPhotos(), fetchPoints().catch(() => {})]); // fresh, so the other laptop's count too
     // One cover reading per paddock per day: the average of every photo accepted for it that day.
     // Same path as a cover typed on a phone, but method "photo" and the photos' own day.
     const saveDay = (name) => {
