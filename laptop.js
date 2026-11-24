@@ -64,6 +64,19 @@ async function start() {
   try { phoneOn = localStorage.getItem(PHONE_KEY) === "1"; } catch {}
   showPhone(phoneOn);
   await loadPhotos();
+  catchUpEstimates();
+}
+
+// New photos get a cover estimate on the server as they upload (supabase/functions/estimate-cover).
+// Opening the laptop page also nudges it, in case one was missed; if any were done, redraw.
+async function catchUpEstimates() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/estimate-cover`, { method: "POST" });
+    const out = await res.json();
+    if (out.done > 0) await loadPhotos();
+  } catch {
+    // estimates are a nicety; the page works without them
+  }
 }
 
 async function fetchPhotos() {
