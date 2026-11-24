@@ -538,6 +538,16 @@ function freshFix() {
     navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, maximumAge: 5_000, timeout: 20_000 }));
 }
 
+// ---------- iPhone ----------
+const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const IOS_HOME_APP = IOS && navigator.standalone === true; // opened from the home screen, not Safari
+
+if (IOS) {
+  $("ios-home").hidden = IOS_HOME_APP;
+  $("photos-where").innerHTML = "After each photo, tap <b>Save to Photos</b> then <b>Save Image</b> to keep the full-size copy in your Photos, with the GPS position inside it.";
+  $("photos-keep").textContent = "(the copy in Photos stays)";
+}
+
 // ---------- camera ----------
 // Standard photo: phone at 1 m, no shadow, toe at the bottom, tilted forward TILT_TARGET degrees from
 // straight down. The app's own camera screen shows a tilt meter that goes green inside the band.
@@ -546,6 +556,21 @@ const TILT_BAND = 7; // ± degrees that count as "good"
 const SIDE_LEAN_MAX = 10; // ± degrees of sideways lean allowed
 let camStream = null;
 let camTilt = null; // { forward, side } from the phone's tilt sensor, or null if it has none
+let motionBlocked = false; // iPhone: the user said no to motion & orientation
+
+// iPhones only give a web app the tilt after the user allows "motion & orientation", and the request
+// must come straight from a tap (so this runs first thing in the camera button's click). Android: no-op.
+function startTilt() {
+  const ask = window.DeviceOrientationEvent?.requestPermission;
+  if (typeof ask !== "function") return window.addEventListener("deviceorientation", onTilt);
+  ask.call(DeviceOrientationEvent)
+    .then((answer) => {
+      motionBlocked = answer !== "granted";
+      if (!motionBlocked && $("cam").open) window.addEventListener("deviceorientation", onTilt);
+      showTilt();
+    })
+    .catch(() => { motionBlocked = true; showTilt(); });
+}
 
 $("camera").addEventListener("click", () => {
   if (!fixIsFresh(lastFix)) {
@@ -562,9 +587,9 @@ async function openCamera() {
   $("cam-shoot").disabled = true;
   $("cam-band").style.left = `${((TILT_TARGET - TILT_BAND) / 90) * 100}%`;
   $("cam-band").style.width = `${((2 * TILT_BAND) / 90) * 100}%`;
+  startTilt();
   showTilt();
   $("cam").showModal();
-  window.addEventListener("deviceorientation", onTilt);
   try {
     camStream = await navigator.mediaDevices.getUserMedia({
       audio: false,
@@ -623,7 +648,9 @@ function showTilt() {
   if (!camTilt) {
     $("cam-angle").textContent = "--°";
     $("cam-needle").hidden = true;
-    say.textContent = "No tilt reading yet. Aim about a third of the way up from straight down.";
+    say.textContent = motionBlocked
+      ? "Tilt meter is off (motion access was refused: Settings > Safari > Motion & Orientation Access). Aim about a third of the way up from straight down."
+      : "No tilt reading yet. Aim about a third of the way up from straight down.";
     shoot.classList.remove("good");
     return;
   }
@@ -684,6 +711,29 @@ $("camera-input").addEventListener("change", async (event) => {
   if (file) await savePhoto(file, null);
 });
 
+// iPhone: a web app can't drop a file into Photos by itself, and the share sheet needs a fresh tap,
+// so ask once the photo's ready. If the phone can't share files, fall back to a normal download (Files).
+let toPhotos = null;
+function offerToPhotos(photo, name) {
+  const file = new File([photo], name, { type: "image/jpeg" });
+  if (!navigator.canShare?.({ files: [file] })) return download(photo, name);
+  toPhotos = file;
+  $("to-photos-name").textContent = name;
+  $("to-photos").showModal();
+}
+$("to-photos-save").addEventListener("click", async () => {
+  const file = toPhotos;
+  $("to-photos").close();
+  toPhotos = null;
+  if (!file) return;
+  try {
+    await navigator.share({ files: [file] });
+  } catch (err) {
+    if (err?.name !== "AbortError") toast(`Couldn't open Save Image: ${err.message || err.name}`, true);
+  }
+});
+$("to-photos-skip").addEventListener("click", () => { toPhotos = null; $("to-photos").close(); });
+
 // tilt: { forward, side } degrees when taken with the app's camera, null from the phone's own camera.
 let photoSaving = false;
 async function savePhoto(file, tilt) {
@@ -712,7 +762,8 @@ async function savePhoto(file, tilt) {
     };
     const tagged = insertExif(new Uint8Array(await jpeg.arrayBuffer()), exif);
     const photo = new Blob([tagged], { type: "image/jpeg" });
-    download(photo, name); // full size stays on the phone
+    if (IOS) offerToPhotos(photo, name); // iPhone: "Save Image" in the share sheet puts it in Photos
+    else download(photo, name); // full size stays on the phone (Download folder)
     const upload = await uploadCopy(canvas, exif); // ~0.5 MB copy for the farm's database
 
     const meta = {
