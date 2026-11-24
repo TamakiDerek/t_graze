@@ -36,8 +36,8 @@
     </section>
 
     <section id="tab-photos" class="tab" hidden>
-      <p class="hint">Photos save to the phone's <b>Download</b> folder, named by date and plus code, with the GPS position inside the photo.
-        They're removed from this list and the farm's database 3 days after they're taken (the copy in Download stays).</p>
+      <p class="hint"><span id="photos-where">Photos save to the phone's <b>Download</b> folder, named by date and plus code, with the GPS position inside the photo.</span>
+        They're removed from this list and the farm's database 3 days after they're taken <span id="photos-keep">(the copy in Download stays)</span>.</p>
       <p class="hint"><b>Taking a standard photo:</b> hold the phone at 1 m (about your belt), keep your shadow out of the picture,
         step forward so your toe is at the bottom, and tilt the phone forward until the bar goes green
         (about 35° from straight down). The tilt is saved with the photo. 🗑 deletes a photo from the app and the database.</p>
@@ -99,6 +99,14 @@
       </dialog>
       <h2>Sync</h2>
       <div id="waiting">
+        <div id="ios-home" class="ios-home" hidden>
+          <b>On iPhone, put it on the home screen first</b>
+          <ol>
+            <li>Open this page in <b>Safari</b>.</li>
+            <li>Tap the <b>Share</b> button (the square with the arrow up), then <b>Add to Home Screen</b>.</li>
+            <li>Open t_graze from the home screen and send us the code it shows <b>there</b>. The home-screen app has its own code, different from this one.</li>
+          </ol>
+        </div>
         <p class="hint">This phone uploads the grazing log and photos to the farm's database once it's been approved. Until then (and whenever there's no signal) everything stays saved on the phone.</p>
         <p class="code-line">This phone: <b id="phone-code" class="code">…</b></p>
         <p id="waiting-status" class="hint"></p>
@@ -170,6 +178,15 @@
       <button id="cam-cancel" type="button" class="cam-side">Cancel</button>
       <button id="cam-shoot" type="button" class="cam-shoot" aria-label="Take the photo"></button>
       <button id="cam-native" type="button" class="cam-side">Phone camera</button>
+    </div>
+  </dialog>
+  <dialog id="to-photos" class="edit-dialog" aria-label="Save to Photos">
+    <p class="edit-title">Photo taken</p>
+    <p class="hint"><span id="to-photos-name"></span> is uploading for the laptop. Keep the full-size copy in your Photos?</p>
+    <p class="hint">Tap <b>Save to Photos</b>, then <b>Save Image</b>.</p>
+    <div class="row">
+      <button id="to-photos-save" type="button">Save to Photos</button>
+      <button id="to-photos-skip" type="button" class="plain">Skip</button>
     </div>
   </dialog>
   <div id="toast" class="toast" role="status" hidden></div>
