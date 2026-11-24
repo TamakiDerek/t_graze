@@ -14,6 +14,9 @@ Android Chrome and has two jobs:
   one to see the photo, choose the paddock and accept or change the cover: that sets `photos.paddock` /
   `cover_accepted` and adds a `cover_readings` row with method `photo` for that paddock on the photo's day. Several photos accepted for
   the same paddock on the same day are averaged into that one reading (`photoDayCover`).
+  A new photo's paddock is guessed from the nearest photos already given one (within 80 m): every
+  accepted photo adds a point to `paddock_points` (`supabase/paddock-points.sql`), which outlives the 3-day
+  photo clean-up.
   New photos show as white squares labelled `?` with a count of how many are waiting, until they're
   estimated automatically: an after-insert trigger on `photos` (`supabase/estimate.sql`) calls the
   `estimate-cover` Edge Function (`supabase/functions/estimate-cover/`), which has Claude Haiku 5.5 compare
