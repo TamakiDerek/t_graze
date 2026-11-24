@@ -89,7 +89,11 @@ create policy "members read their farms" on public.farms
 
 -- Members may change only the feed settings of their own farm (not its name).
 revoke update on public.farms from anon, authenticated;
-grant update (herd_cows, intake_kg, feed_updated_at) on public.farms to authenticated;
+-- The laptop map's home view for the farm (centre and zoom), set from the laptop page.
+alter table public.farms add column if not exists map_lat double precision;
+alter table public.farms add column if not exists map_lng double precision;
+alter table public.farms add column if not exists map_zoom smallint check (map_zoom is null or map_zoom between 3 and 21);
+grant update (herd_cows, intake_kg, feed_updated_at, map_lat, map_lng, map_zoom) on public.farms to authenticated;
 drop policy if exists "members set feed settings" on public.farms;
 create policy "members set feed settings" on public.farms
   for update to authenticated using (public.is_farm_member(id)) with check (public.is_farm_member(id));

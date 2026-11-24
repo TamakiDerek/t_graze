@@ -15,7 +15,8 @@ Android Chrome and has two jobs:
   `cover_accepted` and adds a `cover_readings` row with method `photo` for that paddock on the photo's day. Several photos accepted for
   the same paddock on the same day are averaged into that one reading (`photoDayCover`).
   The laptop signs in and gets approved like a phone. **📱 Show phone** puts the phone app beside the map in a
-  phone-sized frame (same farm and sign-in), for demonstrating it on a call; the choice is remembered.
+  phone-sized frame (same farm and sign-in), for demonstrating it on a call; the choice is remembered. The map opens on
+  the farm's home view (`farms.map_lat`/`map_lng`/`map_zoom`): ⌂ goes back to it, 📌 saves the current view as it.
 - **Paddock photos**: the 📷 button stays disabled until there is a GPS fix less than a minute old.
   Each photo is saved to the phone's **Download** folder as `YYYY_MMDD_<short plus code>.jpg`
   (e.g. `2026_1117_8R9C+W2.jpg`). A second photo with the same name gets `_2`, `_3` and so on. The

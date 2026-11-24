@@ -70,8 +70,26 @@ async function fetchPhotos() {
   photos = await cloud.request(
     `/rest/v1/photos?select=file,taken_at,plus_code,latitude,longitude,accuracy_m,altitude_m,storage_path,paddock,cover_estimate,estimate_by,cover_accepted,accepted_at&farm_id=eq.${cloud.state.farmId}&order=taken_at.desc`);
 }
+// Where the map opens: the farm's saved home view, or (until one is saved) the middle of its photos.
+let home = null;
+async function fetchHome() {
+  const [f] = await cloud.request(`/rest/v1/farms?select=map_lat,map_lng,map_zoom&id=eq.${cloud.state.farmId}`);
+  home = f && f.map_lat != null && f.map_lng != null ? { center: [f.map_lat, f.map_lng], zoom: f.map_zoom ?? 16 } : null;
+}
+const median = (xs) => { const s = [...xs].sort((a, b) => a - b); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+function goHome() {
+  if (home) return map.setView(home.center, home.zoom);
+  if (!photos.length) return map.setView([-37.75, 175.3], 14);
+  // No home saved yet: centre on the middle photo, ignoring strays (a photo taken off the farm).
+  const centres = photos.map((p) => { const { south, west, size } = decode(p.plus_code); return [south + size / 2, west + size / 2]; });
+  const mid = L.latLng(median(centres.map((c) => c[0])), median(centres.map((c) => c[1])));
+  const near = centres.filter((c) => mid.distanceTo(c) < 3000);
+  if (near.length > 1) map.fitBounds(near, { padding: [40, 40], maxZoom: 17 });
+  else map.setView(mid, 16);
+}
+
 async function loadPhotos() {
-  await fetchPhotos();
+  await Promise.all([fetchPhotos(), fetchHome().catch(() => (home = null))]);
   drawMap();
   drawList();
   checkSizes().catch((err) => console.warn("photo sizes:", err));
@@ -139,6 +157,21 @@ function drawMap(refit = true) {
       attribution: "Imagery © Esri, Maxar, Earthstar Geographics, and the GIS user community",
     }).addTo(map);
     map.on("zoomend", layoutLabels);
+    // ⌂ back to the farm's home view; 📌 save what's on screen as everyone's home view for this farm.
+    const Ctl = L.Control.extend({
+      onAdd() {
+        const box = L.DomUtil.create("div", "leaflet-bar home-ctl");
+        const btn = (text, title, fn) => {
+          const a = L.DomUtil.create("a", "", box);
+          a.href = "#"; a.textContent = text; a.title = title; a.setAttribute("role", "button"); a.setAttribute("aria-label", title);
+          L.DomEvent.on(a, "click", (e) => { L.DomEvent.preventDefault(e); L.DomEvent.stopPropagation(e); fn(); });
+        };
+        btn("⌂", "Back to the farm's home view", goHome);
+        btn("📌", "Save this view as the farm's home view (for everyone on the farm)", saveHome);
+        return box;
+      },
+    });
+    new Ctl({ position: "topleft" }).addTo(map);
   }
   map.invalidateSize(); // the map was hidden until now
   for (const r of squares.values()) r.remove();
@@ -160,11 +193,20 @@ function drawMap(refit = true) {
     squares.set(p.file, rect);
   }
   markChosen();
-  if (refit) {
-    if (bounds.length) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 19 });
-    else map.setView([-37.75, 175.3], 14);
-  }
+  if (refit) goHome();
   requestAnimationFrame(layoutLabels);
+}
+
+async function saveHome() {
+  const c = map.getCenter();
+  const view = { map_lat: Number(c.lat.toFixed(7)), map_lng: Number(c.lng.toFixed(7)), map_zoom: map.getZoom() };
+  try {
+    await cloud.request(`/rest/v1/farms?id=eq.${cloud.state.farmId}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: view });
+    home = { center: [view.map_lat, view.map_lng], zoom: view.map_zoom };
+    toast("Saved: the map now opens here for everyone on the farm.");
+  } catch (err) {
+    toast(`Not saved: ${err.message}`, true);
+  }
 }
 
 // Photos a few metres apart have squares side by side, and their labels would run into each other.
