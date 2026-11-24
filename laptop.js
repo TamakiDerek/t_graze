@@ -4,7 +4,7 @@
 import { Store, measureCover, isoDate, photoDayCover } from "./model.js";
 import { Cloud } from "./cloud.js";
 import { decode } from "./pluscode.js";
-import { SUPABASE_URL } from "./config.js";
+import { SUPABASE_URL, LINZ_BASEMAPS_KEY } from "./config.js";
 import { uploadCopy, tiltFromJpeg, UPLOAD_BIG_BYTES } from "./photo-size.js";
 
 const $ = (id) => document.getElementById(id);
@@ -152,10 +152,18 @@ $("shrink-go").addEventListener("click", async () => {
 function drawMap(refit = true) {
   if (!map) {
     map = L.map("map", { zoomControl: true });
-    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-      maxZoom: 21, maxNativeZoom: 19,
-      attribution: "Imagery © Esri, Maxar, Earthstar Geographics, and the GIS user community",
-    }).addTo(map);
+    if (LINZ_BASEMAPS_KEY) {
+      // LINZ aerial imagery: free for commercial use under CC BY 4.0, attribution as LINZ asks for it.
+      L.tileLayer(`https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/{z}/{x}/{y}.webp?api=${encodeURIComponent(LINZ_BASEMAPS_KEY)}`, {
+        maxZoom: 21, maxNativeZoom: 20,
+        attribution: '© <a href="https://www.linz.govt.nz/linz-copyright" target="_blank" rel="noopener">LINZ CC BY 4.0</a> © <a href="https://www.linz.govt.nz/data/linz-data/linz-basemaps/data-attribution" target="_blank" rel="noopener">Imagery Basemap contributors</a>',
+      }).addTo(map);
+    } else {
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+        maxZoom: 21, maxNativeZoom: 19,
+        attribution: "Imagery © Esri, Maxar, Earthstar Geographics, and the GIS user community",
+      }).addTo(map);
+    }
     map.on("zoomend", layoutLabels);
     // ⌂ back to the farm's home view; 📌 save what's on screen as everyone's home view for this farm.
     const Ctl = L.Control.extend({
