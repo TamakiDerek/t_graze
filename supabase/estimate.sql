@@ -17,6 +17,17 @@ alter table public.photos add column if not exists auto_estimate_by text;
 -- the DairyNZ ones).
 alter table public.reference_photos add column if not exists active boolean not null default true;
 
+-- Farm photos can become reference photos (kind 'farm'): photos taken with the app whose cover was
+-- accepted, copied into the reference bucket by the estimate-cover function
+-- ({"add_farm_references": "<farm id>"}). photo_file is the photo it came from, so that photo is never
+-- compared with itself.
+alter table public.reference_photos add column if not exists photo_file text;
+alter table public.reference_photos drop constraint if exists reference_photos_kind_check;
+alter table public.reference_photos add constraint reference_photos_kind_check check (kind in ('pre', 'residual', 'farm'));
+-- The DairyNZ pictures aren't uploaded (they belong to DairyNZ); the farm's own accepted photos stand in
+-- until professionally calibrated photos replace them.
+update public.reference_photos set active = false where source like 'DairyNZ%';
+
 create extension if not exists pg_net with schema extensions;
 
 -- Fire and forget: pg_net sends the request after the insert commits, so uploads never wait for it.

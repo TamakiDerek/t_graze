@@ -76,11 +76,17 @@ async function image(bucket: string, path: string) {
   };
 }
 
-// The reference set: every boot photo, plus one paddock view per residual cover. Same order every time,
-// so the request starts the same way and the API can cache it.
-async function references() {
-  const { data, error } = await db.from("reference_photos").select("file,cover,kind,view,note").eq("active", true)
-    .order("view").order("cover").order("file");
+// The reference set: every boot photo (including farm photos with an accepted cover), plus one paddock view
+// per residual cover. Same order every time, so the request starts the same way and the API can cache it.
+type Ref = { photo_file: string | null; blocks: Anthropic.ContentBlockParam[] };
+const KIND_TEXT: Record<string, string> = {
+  pre: "pre-grazing",
+  residual: "post-grazing residual",
+  farm: "farm photo taken with the app to the same standard; cover accepted by the farmer",
+};
+async function references(): Promise<Ref[]> {
+  const { data, error } = await db.from("reference_photos").select("file,cover,kind,view,note,photo_file")
+    .eq("active", true).order("view").order("cover").order("file");
   if (error) throw error;
   const seen = new Set<string>();
   const chosen = (data ?? []).filter((r) => {
@@ -90,16 +96,20 @@ async function references() {
     seen.add(key);
     return true;
   });
-  const blocks: Anthropic.ContentBlockParam[] = [];
+  const refs: Ref[] = [];
   for (const r of chosen) {
-    blocks.push({ type: "text", text: `Reference: ${r.cover} kg DM/ha (${r.kind === "pre" ? "pre-grazing" : "post-grazing residual"}, ${r.view} view${r.note ? `; ${r.note}` : ""})` });
-    blocks.push(await image("reference", r.file));
+    refs.push({ photo_file: r.photo_file, blocks: [
+      { type: "text", text: `Reference: ${r.cover} kg DM/ha (${KIND_TEXT[r.kind] ?? r.kind}, ${r.view} view${r.note ? `; ${r.note}` : ""})` },
+      await image("reference", r.file),
+    ] });
   }
-  return { blocks, count: chosen.length };
+  return refs;
 }
 
-async function estimate(client: Anthropic, refs: Awaited<ReturnType<typeof references>>, photo: { storage_path: string }) {
-  const content: Anthropic.ContentBlockParam[] = [...refs.blocks];
+// A photo is never compared with itself (when it has become a reference).
+async function estimate(client: Anthropic, allRefs: Ref[], photo: { file: string; storage_path: string }) {
+  const refs = allRefs.filter((r) => r.photo_file !== photo.file);
+  const content: Anthropic.ContentBlockParam[] = refs.flatMap((r) => r.blocks);
   // Cache the reference images: photos from one farm walk arrive minutes apart and share them.
   content[content.length - 1] = { ...content[content.length - 1], cache_control: { type: "ephemeral" } } as Anthropic.ContentBlockParam;
   content.push({ type: "text", text: "New paddock photo to estimate:" });
@@ -114,10 +124,45 @@ async function estimate(client: Anthropic, refs: Awaited<ReturnType<typeof refer
   if (response.stop_reason === "refusal") throw new Error("the model declined this photo");
   const text = response.content.find((b) => b.type === "text");
   if (!text || text.type !== "text") throw new Error(`no answer (stop: ${response.stop_reason})`);
-  return { ...(JSON.parse(text.text) as Estimate), usage: response.usage };
+  return { ...(JSON.parse(text.text) as Estimate), refs: refs.length, usage: response.usage };
 }
 
-Deno.serve(async () => {
+// Make a farm's photos with an accepted cover into reference photos (kind "farm"): copied into the
+// reference bucket so they outlive the 3-day photo clean-up. Already-copied photos are skipped.
+async function addFarmReferences(farmId: string) {
+  const { data: photos, error } = await db.from("photos").select("file,storage_path,cover_accepted,paddock,taken_at")
+    .eq("farm_id", farmId).not("cover_accepted", "is", null);
+  if (error) throw error;
+  const added = [];
+  for (const p of photos ?? []) {
+    const file = `farm-${farmId}/${p.file}`;
+    const { data: have } = await db.from("reference_photos").select("file").eq("file", file);
+    if (have?.length) continue;
+    const { data: img, error: e1 } = await db.storage.from("photos").download(p.storage_path);
+    if (e1 || !img) throw new Error(`can't read ${p.storage_path}: ${e1?.message}`);
+    const { error: e2 } = await db.storage.from("reference").upload(file, img, { contentType: "image/jpeg", upsert: true });
+    if (e2) throw new Error(`can't save ${file}: ${e2.message}`);
+    const { error: e3 } = await db.from("reference_photos").insert({
+      file, cover: p.cover_accepted, kind: "farm", view: "boot", photo_file: p.file,
+      source: "Farm photo, cover accepted by the farmer", note: p.paddock ? `paddock ${p.paddock}` : null,
+    });
+    if (e3) throw new Error(`can't add ${file}: ${e3.message}`);
+    added.push({ file: p.file, cover: p.cover_accepted });
+  }
+  return added;
+}
+
+Deno.serve(async (req) => {
+  const body = await req.json().catch(() => ({}));
+  // { "add_farm_references": "<farm id>" }: no model calls, so no key needed.
+  if (typeof body?.add_farm_references === "string") {
+    try {
+      return Response.json({ added: await addFarmReferences(body.add_farm_references) });
+    } catch (err) {
+      return Response.json({ error: String((err as Error)?.message ?? err) }, { status: 500 });
+    }
+  }
+
   const key = Deno.env.get("ANTHROPIC_API_KEY");
   if (!key) return Response.json({ done: 0, note: "ANTHROPIC_API_KEY is not set" });
 
@@ -132,13 +177,13 @@ Deno.serve(async () => {
   if (!todo?.length) return Response.json({ done: 0 });
 
   const client = new Anthropic({ apiKey: key });
-  let refs: Awaited<ReturnType<typeof references>>;
+  let refs: Ref[];
   try {
     refs = await references();
   } catch (err) {
     return Response.json({ done: 0, note: `reference photos unavailable: ${(err as Error)?.message ?? err}` });
   }
-  if (!refs.count) return Response.json({ done: 0, note: "no active reference photos" });
+  if (!refs.length) return Response.json({ done: 0, note: "no active reference photos" });
   const results = [];
   for (const p of todo) {
     // Claim it: only one caller works on a photo at a time (attempts goes up by one).
@@ -150,7 +195,7 @@ Deno.serve(async () => {
     try {
       const e = await estimate(client, refs, p);
       const by = e.usable
-        ? `Claude Haiku (auto, ${e.confidence} confidence) vs ${refs.count} reference photos: ${e.reason}`
+        ? `Claude Haiku (auto, ${e.confidence} confidence) vs ${e.refs} reference photos: ${e.reason}`
         : `Claude Haiku (auto): can't judge cover: ${e.reason}`;
       const auto = e.usable ? e.cover : 0; // 0 = looked at, couldn't judge
       const change: Record<string, unknown> = { auto_estimate: auto, auto_estimate_by: by };
