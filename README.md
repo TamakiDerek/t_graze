@@ -9,7 +9,7 @@ Android Chrome and has two jobs:
 - **Product page** (`about.html`, https://tamakiderek.github.io/t_graze/about.html): what t_graze is, the price
   ($2 per grazed hectare a year + GST), the data policy, screenshots (`about/`) and how to sign up by email.
 - **Laptop page** (`laptop.html`, e.g. https://tamakiderek.github.io/t_graze/laptop.html): an aerial map
-  (Esri World Imagery) with each photo drawn as its plus-code square (about 14 × 14 m) and labelled with
+  (LINZ aerial imagery, with `LINZ_BASEMAPS_KEY` in `app/config.js`; Esri World Imagery until a key is set) with each photo drawn as its plus-code square (about 14 × 14 m) and labelled with
   the cover estimated from it (`photos.cover_estimate`, yellow) or accepted (green, with the paddock). Click
   one to see the photo, choose the paddock and accept or change the cover: that sets `photos.paddock` /
   `cover_accepted` and adds a `cover_readings` row with method `photo` for that paddock on the photo's day. Several photos accepted for
