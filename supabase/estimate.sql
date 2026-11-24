@@ -8,6 +8,10 @@
 
 -- How many times the estimator has tried a photo (it gives up after 3).
 alter table public.photos add column if not exists estimate_attempts smallint not null default 0;
+-- The model's own answer, kept apart from cover_estimate / cover_accepted so the two can be compared
+-- (0 = looked at, couldn't judge). A photo with no cover estimate yet also gets it as its cover_estimate.
+alter table public.photos add column if not exists auto_estimate integer;
+alter table public.photos add column if not exists auto_estimate_by text;
 
 -- Reference photos can be switched off without deleting them (e.g. when our own calibrated photos replace
 -- the DairyNZ ones).

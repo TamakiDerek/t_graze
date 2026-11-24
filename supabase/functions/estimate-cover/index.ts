@@ -1,9 +1,12 @@
 // estimate-cover: estimates the pasture cover (kg DM/ha) in new paddock photos by comparing them with
 // the reference photos (pictures of known cover), using Claude.
 //
-// Called by the database when a photo row is added (trigger in supabase/estimate.sql) and by the laptop
-// page when it opens, to catch up on anything missed. Either way it just looks for photos that have no
-// estimate yet, so calling it too often does no harm. Each photo is tried at most 3 times.
+// It looks for photos (from the last 3 days) that the model hasn't estimated yet, so calling it too often
+// does no harm and each photo costs at most one estimate (3 tries if the call fails). The model's answer
+// always goes in photos.auto_estimate / auto_estimate_by, so it can be compared with covers judged by eye
+// or measured; a photo with no cover estimate yet also gets it as its cover_estimate.
+// Called by the database when a photo row is added (trigger in supabase/estimate.sql, when switched on), or
+// by hand: curl -X POST https://<project>.supabase.co/functions/v1/estimate-cover
 //
 // Secrets (Supabase > Edge Functions > Secrets): ANTHROPIC_API_KEY. SUPABASE_URL and
 // SUPABASE_SECRET_KEYS are provided by Supabase. "Verify JWT" is off: callers send no secrets.
@@ -11,7 +14,8 @@
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const MODEL = "claude-opus-5-5";
+// Haiku: about 0.1 cent a photo (the reference images are cached between photos taken close together).
+const MODEL = "claude-haiku-5-5";
 const MAX_ATTEMPTS = 3;
 const BATCH = 5; // photos per call
 
@@ -86,7 +90,7 @@ async function references() {
     seen.add(key);
     return true;
   });
-  const blocks: Anthropic.Beta.BetaContentBlockParam[] = [];
+  const blocks: Anthropic.ContentBlockParam[] = [];
   for (const r of chosen) {
     blocks.push({ type: "text", text: `Reference: ${r.cover} kg DM/ha (${r.kind === "pre" ? "pre-grazing" : "post-grazing residual"}, ${r.view} view${r.note ? `; ${r.note}` : ""})` });
     blocks.push(await image("reference", r.file));
@@ -95,34 +99,33 @@ async function references() {
 }
 
 async function estimate(client: Anthropic, refs: Awaited<ReturnType<typeof references>>, photo: { storage_path: string }) {
-  const content: Anthropic.Beta.BetaContentBlockParam[] = [...refs.blocks];
-  content[content.length - 1] = { ...content[content.length - 1], cache_control: { type: "ephemeral" } } as Anthropic.Beta.BetaContentBlockParam;
+  const content: Anthropic.ContentBlockParam[] = [...refs.blocks];
+  // Cache the reference images: photos from one farm walk arrive minutes apart and share them.
+  content[content.length - 1] = { ...content[content.length - 1], cache_control: { type: "ephemeral" } } as Anthropic.ContentBlockParam;
   content.push({ type: "text", text: "New paddock photo to estimate:" });
   content.push(await image("photos", photo.storage_path));
-  const response = await client.beta.messages.create({
+  const response = await client.messages.create({
     model: MODEL,
     max_tokens: 16000,
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
     system: SYSTEM,
     output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA } },
     messages: [{ role: "user", content }],
-  } as Anthropic.Beta.MessageCreateParamsNonStreaming);
+  } as Anthropic.MessageCreateParamsNonStreaming);
   if (response.stop_reason === "refusal") throw new Error("the model declined this photo");
   const text = response.content.find((b) => b.type === "text");
   if (!text || text.type !== "text") throw new Error(`no answer (stop: ${response.stop_reason})`);
-  return JSON.parse(text.text) as Estimate;
+  return { ...(JSON.parse(text.text) as Estimate), usage: response.usage };
 }
 
 Deno.serve(async () => {
   const key = Deno.env.get("ANTHROPIC_API_KEY");
   if (!key) return Response.json({ done: 0, note: "ANTHROPIC_API_KEY is not set" });
 
-  // Photos with no estimate, not yet accepted, still kept (3 days), and not given up on.
+  // Photos the model hasn't estimated, still kept (3 days), and not given up on.
   const since = new Date(Date.now() - 3 * 86400_000).toISOString();
   const { data: todo, error } = await db.from("photos")
-    .select("farm_id,file,storage_path,estimate_attempts")
-    .is("cover_estimate", null).is("cover_accepted", null)
+    .select("farm_id,file,storage_path,estimate_attempts,cover_estimate")
+    .is("auto_estimate", null)
     .lt("estimate_attempts", MAX_ATTEMPTS).gt("taken_at", since)
     .order("taken_at").limit(BATCH);
   if (error) return Response.json({ error: error.message }, { status: 500 });
@@ -141,18 +144,19 @@ Deno.serve(async () => {
     // Claim it: only one caller works on a photo at a time (attempts goes up by one).
     const { data: claimed } = await db.from("photos")
       .update({ estimate_attempts: p.estimate_attempts + 1 })
-      .eq("farm_id", p.farm_id).eq("file", p.file).eq("estimate_attempts", p.estimate_attempts).is("cover_estimate", null)
+      .eq("farm_id", p.farm_id).eq("file", p.file).eq("estimate_attempts", p.estimate_attempts).is("auto_estimate", null)
       .select("file");
     if (!claimed?.length) continue;
     try {
       const e = await estimate(client, refs, p);
       const by = e.usable
-        ? `Claude (auto, ${e.confidence} confidence) vs ${refs.count} reference photos: ${e.reason}`
-        : `Claude (auto): can't judge cover: ${e.reason}`;
-      await db.from("photos").update({ cover_estimate: e.usable ? e.cover : null, estimate_by: by,
-        estimate_attempts: e.usable ? p.estimate_attempts + 1 : MAX_ATTEMPTS })
-        .eq("farm_id", p.farm_id).eq("file", p.file);
-      results.push({ file: p.file, ...e });
+        ? `Claude Haiku (auto, ${e.confidence} confidence) vs ${refs.count} reference photos: ${e.reason}`
+        : `Claude Haiku (auto): can't judge cover: ${e.reason}`;
+      const auto = e.usable ? e.cover : 0; // 0 = looked at, couldn't judge
+      const change: Record<string, unknown> = { auto_estimate: auto, auto_estimate_by: by };
+      if (p.cover_estimate == null && e.usable) Object.assign(change, { cover_estimate: e.cover, estimate_by: by });
+      await db.from("photos").update(change).eq("farm_id", p.farm_id).eq("file", p.file);
+      results.push({ file: p.file, before: p.cover_estimate, ...e });
     } catch (err) {
       results.push({ file: p.file, error: String((err as Error)?.message ?? err) });
     }
