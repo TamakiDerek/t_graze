@@ -14,12 +14,14 @@ Android Chrome and has two jobs:
   one to see the photo, choose the paddock and accept or change the cover: that sets `photos.paddock` /
   `cover_accepted` and adds a `cover_readings` row with method `photo` for that paddock on the photo's day. Several photos accepted for
   the same paddock on the same day are averaged into that one reading (`photoDayCover`).
-  New photos show as white squares labelled `?` with a count of how many are waiting; for now their covers
-  are estimated by hand (Claude by eye, on request) and written to `cover_estimate` / `estimate_by`.
-  An automatic estimator is built but parked: the `estimate-cover` Edge Function
-  (`supabase/functions/estimate-cover/`, deployed, idle without the `ANTHROPIC_API_KEY` secret) compares a
-  photo with the active `reference_photos`; `supabase/estimate.sql` adds the trigger that would call it on
-  each new photo (not installed). It waits for calibrated comparison photos and a cheaper model.
+  New photos show as white squares labelled `?` with a count of how many are waiting, until they're
+  estimated automatically: an after-insert trigger on `photos` (`supabase/estimate.sql`) calls the
+  `estimate-cover` Edge Function (`supabase/functions/estimate-cover/`), which has Claude Haiku 5.5 compare
+  the photo with the active `reference_photos` (never with itself) and writes `auto_estimate` /
+  `auto_estimate_by`, and `cover_estimate` if the photo had none. References are currently farm photos
+  with an accepted cover (kind `farm`, copied into the `reference` bucket with
+  `{"add_farm_references": "<farm id>"}`); the DairyNZ rows are inactive. Needs the Edge Function secret
+  `ANTHROPIC_API_KEY`. About 0.1 cent a photo.
   The laptop signs in and gets approved like a phone. **📱 Show phone** puts the phone app beside the map in a
   phone-sized frame (same farm and sign-in), for demonstrating it on a call; the choice is remembered. The map opens on
   the farm's home view (`farms.map_lat`/`map_lng`/`map_zoom`): ⌂ goes back to it, 📌 saves the current view as it.
