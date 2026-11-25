@@ -104,8 +104,16 @@ function renderAnalysis() {
   renderFeed();
 }
 
+// An adviser account sees the farm but can't change it (supabase/advisers.sql): say so instead.
+function viewOnly() {
+  if (!cloud.adviser) return false;
+  toast("Adviser view: you can see the farm's records but not change them.", true);
+  return true;
+}
+
 // Tap a paddock name (Analysis chart or Paddocks table): take it out of the rotation, or put it back in.
 function toggleRotation(name) {
+  if (viewOnly()) return;
   const out = !store.isOut(name);
   store.setOut(name, out);
   cloud.paddockRotationSet(name, !out);
@@ -127,6 +135,7 @@ function showFeedInputs() {
 }
 showFeedInputs();
 $("feed-form").addEventListener("input", () => {
+  if (viewOnly()) return showFeedInputs();
   const cows = Number($("feed-cows").value);
   const perCow = Number($("feed-per").value);
   if ($("feed-cows").value !== "" && $("feed-per").value !== "" && cows >= 0 && perCow >= 0) cloud.feedChanged(cows, perCow);
@@ -256,6 +265,7 @@ function renderLog() {
 $("log-rows").addEventListener("change", (event) => {
   const input = event.target;
   if (!(input instanceof HTMLInputElement)) return;
+  if (viewOnly()) return renderLog();
   const typed = input.value.trim().replace(/\s+/g, " ");
   let paddock = "";
   if (typed) {
@@ -390,6 +400,7 @@ $("paddock-rows").addEventListener("click", (event) => {
   $("edit-note").textContent = uses
     ? `Used in the grazing log ${uses} time(s), so it can be renamed (the log follows) but not removed.`
     : "Not used in the grazing log.";
+  if (viewOnly()) return;
   $("edit-dialog").showModal();
 });
 
@@ -450,6 +461,7 @@ $("edit-form").addEventListener("submit", (event) => {
 
 $("add-paddock").addEventListener("submit", (event) => {
   event.preventDefault();
+  if (viewOnly()) return;
   const input = $("new-paddock");
   const typed = input.value.trim();
   if (!typed) return;
