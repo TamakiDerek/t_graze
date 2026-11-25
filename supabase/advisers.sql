@@ -122,6 +122,65 @@ end;
 $$;
 revoke execute on function public.approve_adviser(text, text, text, text) from public, anon, authenticated;
 
+-- An adviser's own photos: every adviser device gets a photo space of its own, a farms row with
+-- kind 'adviser' (named "Adviser <code>") where it's an ordinary member. The app uploads the adviser's
+-- photos there, never to the farm being visited, so a photo taken on one farm can be shown on the
+-- next. Kept until the adviser deletes them (keep_photos); Haiku estimates them like any farm's.
+alter table public.farms add column if not exists kind text not null default 'farm';
+alter table public.farms drop constraint if exists farms_kind_check;
+alter table public.farms add constraint farms_kind_check check (kind in ('farm', 'adviser'));
+
+create or replace function public.adviser_space(device_user uuid, device_code text)
+returns uuid
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  s uuid;
+begin
+  select m.farm_id into s from public.farm_members m join public.farms f on f.id = m.farm_id
+   where m.user_id = device_user and f.kind = 'adviser' limit 1;
+  if s is null then
+    insert into public.farms (name, kind, keep_photos) values ('Adviser ' || device_code, 'adviser', true) returning id into s;
+    insert into public.farm_members (farm_id, user_id, role) values (s, device_user, 'member');
+  end if;
+  return s;
+end;
+$$;
+revoke execute on function public.adviser_space(uuid, text) from public, anon, authenticated;
+
+create or replace function public.approve_adviser(phone_code text, farm_name text,
+                                                  person_name text default null, person_email text default null)
+returns text
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  d public.devices;
+  f uuid;
+begin
+  select * into d from public.devices where code = upper(replace(phone_code, '-', ''));
+  if not found then
+    raise exception 'No device with code %', phone_code;
+  end if;
+  select id into f from public.farms where name = farm_name and kind = 'farm';
+  if f is null then
+    raise exception 'No farm called %', farm_name;
+  end if;
+  if exists (select 1 from public.farm_members where farm_id = f and user_id = d.user_id and role <> 'adviser') then
+    raise exception 'Device % is already one of %''s own devices', phone_code, farm_name;
+  end if;
+  insert into public.farm_members (farm_id, user_id, role) values (f, d.user_id, 'adviser') on conflict do nothing;
+  perform public.adviser_space(d.user_id, d.code);
+  update public.devices
+     set approved_at = coalesce(approved_at, now()),
+         account = 'adviser',
+         owner_name = coalesce(person_name, owner_name),
+         owner_email = coalesce(person_email, owner_email)
+   where user_id = d.user_id;
+  return format('Adviser %s (%s) can now view %s, with their own photo space', coalesce(person_name, d.owner_name, 'no name given'), d.code, farm_name);
+end;
+$$;
+revoke execute on function public.approve_adviser(text, text, text, text) from public, anon, authenticated;
+
 -- phone_list shows the account type and role too.
 drop view if exists public.phone_list;
 create view public.phone_list with (security_invoker = true) as
