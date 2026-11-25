@@ -106,7 +106,14 @@ What's in Supabase (project setup is in `supabase/`: run `schema.sql`, then `pho
 | `reference_photos` + bucket `reference` | "For comparison" pictures of known cover (`cover`, `kind` pre/residual, `view` boot/paddock, `source`, `page`), shared by every farm; setup in `supabase/reference.sql`. The images stay private in Supabase, not in this repo (they belong to their publishers) |
 
 Row-level security keeps each farm's rows to that farm's approved phones. An unapproved phone sees
-nothing, can't approve itself and can't join a farm. Phones can't delete photo files.
+nothing, can't approve itself and can't join a farm.
+
+**Adviser accounts** (`supabase/advisers.sql`): a consultant, farm accountant or field rep who looks at a farm
+but doesn't run it. Approve their device with `select public.approve_adviser('3F9-A21', '77207', 'Name', 'email');`
+(the app shows one farm per device for now; choosing between farms is still to come). The database makes them view-only (`farm_members.role = 'adviser'`):
+they read everything but can't change paddocks, grazing, covers, feed settings or photos. The app hides the camera,
+Photos and Accept tabs, and drops anything changed on the device at each sync. Still one approval per device; a
+sign-in that follows the person across devices (email) is still to come.
 
 If Chrome's site data for the app is cleared, the phone gets a new code and needs approving again.
 Anything not yet uploaded at that point is lost, and so is the local copy of everything else, which
