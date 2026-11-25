@@ -309,7 +309,7 @@ body[data-tab="check"] .camera { display: none; }
 .check-photo { display: block; border-radius: 10px; overflow: hidden; background: #0b0d0b; height: 58vh; min-height: 240px; }
 .check-photo img { display: block; width: 100%; height: 100%; object-fit: contain; } /* the whole photo, boot included: never cropped */
 .check-photo img:not([src]) { visibility: hidden; }
-.check-map { height: 170px; margin: 6px 0 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); }
+.check-map { height: 170px; margin: 0 0 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); }
 .check-tip { padding: 0 3px; font-size: 10px; font-weight: 600; background: rgba(0, 0, 0, 0.55); color: #fff; border: 0; box-shadow: none; }
 .check-tip::before { display: none; }
 .check-est { margin: 0 0 10px; font-size: 0.92rem; }
