@@ -12,6 +12,8 @@ const SHELL = [
   "exif.js",
   "photo-size.js",
   "cloud.js",
+  "photo-check.js",
+  "check.js",
   "config.js",
   "manifest.webmanifest",
   "icon.svg",

@@ -1,7 +1,8 @@
 // Laptop side: the farm's photos on an aerial map, each as its plus-code square with the cover
 // estimated from it. Click one, say which paddock it is, and accept (or change) the cover: that saves
 // the paddock against the photo and adds a cover reading (method "photo") for that paddock and day.
-import { Store, measureCover, isoDate, photoDayCover } from "./model.js";
+import { Store, isoDate, photoDayCover } from "./model.js";
+import { fetchFarmPhotos, fetchPoints as getPoints, coverOf, estimateText, guessPaddock as guessFrom, guessText, photoLink, acceptPhoto, deleteFarmPhoto, findPaddock } from "./photo-check.js";
 import { Cloud } from "./cloud.js";
 import { decode } from "./pluscode.js";
 import { SUPABASE_URL, LINZ_BASEMAPS_KEY } from "./config.js";
@@ -47,7 +48,6 @@ function showStatus() {
 }
 
 const when = (iso) => new Date(iso).toLocaleString("en-NZ", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-const coverOf = (p) => p.cover_accepted ?? p.cover_estimate;
 
 async function start() {
   await cloud.sync();
@@ -67,8 +67,7 @@ async function start() {
 }
 
 async function fetchPhotos() {
-  photos = await cloud.request(
-    `/rest/v1/photos?select=file,taken_at,plus_code,latitude,longitude,accuracy_m,altitude_m,storage_path,paddock,cover_estimate,estimate_by,auto_estimate,auto_estimate_by,cover_accepted,accepted_at&farm_id=eq.${cloud.state.farmId}&order=taken_at.desc`);
+  photos = await fetchFarmPhotos(cloud);
 }
 // Where the map opens: the farm's saved home view, or (until one is saved) the middle of its photos.
 let home = null;
@@ -91,40 +90,9 @@ function goHome() {
 // Where the paddocks are: one point per photo ever given a paddock (supabase/paddock-points.sql).
 let points = [];
 async function fetchPoints() {
-  points = await cloud.request(
-    `/rest/v1/paddock_points?select=photo_file,paddock,latitude,longitude&farm_id=eq.${cloud.state.farmId}`);
+  points = await getPoints(cloud);
 }
-function rememberPoint(p, paddock) {
-  return cloud.request("/rest/v1/paddock_points?on_conflict=farm_id,photo_file", {
-    method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-    body: { farm_id: cloud.state.farmId, photo_file: p.file, paddock, latitude: p.latitude, longitude: p.longitude, taken_at: p.taken_at },
-  });
-}
-
-// First guess at a photo's paddock: the nearest earlier photos given a paddock (within GUESS_RADIUS_M),
-// the closest counting most. Null if none are near enough.
-const GUESS_RADIUS_M = 80;
-function metresBetween(a, b) {
-  const k = 111_320; // metres per degree of latitude
-  const dy = (a.latitude - b.latitude) * k;
-  const dx = (a.longitude - b.longitude) * k * Math.cos((a.latitude * Math.PI) / 180);
-  return Math.hypot(dx, dy);
-}
-function guessPaddock(photo) {
-  const known = new Map(points.map((q) => [q.photo_file, q]));
-  for (const p of photos) if (p.paddock) known.set(p.file, { photo_file: p.file, paddock: p.paddock, latitude: p.latitude, longitude: p.longitude });
-  const near = [...known.values()]
-    .filter((q) => q.photo_file !== photo.file && store.paddocks.includes(q.paddock))
-    .map((q) => ({ paddock: q.paddock, d: metresBetween(photo, q) }))
-    .filter((q) => q.d <= GUESS_RADIUS_M)
-    .sort((a, b) => a.d - b.d)
-    .slice(0, 5);
-  if (!near.length) return null;
-  const votes = new Map();
-  for (const q of near) votes.set(q.paddock, (votes.get(q.paddock) ?? 0) + 1 / (q.d + 5));
-  const [paddock] = [...votes.entries()].sort((a, b) => b[1] - a[1])[0];
-  return { paddock, metres: Math.round(near.find((q) => q.paddock === paddock).d), others: new Set(near.map((q) => q.paddock)).size > 1 };
-}
+const guessPaddock = (photo) => guessFrom(photo, photos, points, store.paddocks);
 
 async function loadPhotos() {
   await Promise.all([fetchPhotos(), fetchHome().catch(() => (home = null)), fetchPoints().catch(() => (points = []))]);
@@ -364,13 +332,10 @@ async function choose(file) {
   $("pick-paddock").value = chosen.paddock ?? guess?.paddock ?? "";
   $("pick-guess").hidden = !guess;
   if (guess) {
-    $("pick-guess").textContent = `Guessed from nearby photos: the closest ${guess.paddock} photo is ${guess.metres} m away` +
-      (guess.others ? " (another paddock is close too, so check the fence line)." : ".");
+    $("pick-guess").textContent = guessText(guess);
   }
   $("pick-cover").value = coverOf(chosen) ?? "";
-  $("pick-est").textContent = chosen.cover_estimate == null
-    ? (chosen.auto_estimate_by ? `No estimate (${chosen.auto_estimate_by}). Type the cover, or delete the photo.` : "No estimate yet: type the cover.")
-    : `Estimated ${chosen.cover_estimate} (${chosen.estimate_by ?? "estimate"}).`;
+  $("pick-est").textContent = estimateText(chosen);
   const sameDay = chosen.paddock ? photoDayCover(photos, chosen.paddock, isoDate(new Date(chosen.taken_at))) : null;
   $("pick-note").textContent = chosen.cover_accepted != null
     ? `Accepted ${chosen.cover_accepted} for ${chosen.paddock} on ${when(chosen.accepted_at)}.` +
@@ -383,14 +348,9 @@ async function choose(file) {
   const img = $("pick-img");
   img.removeAttribute("src");
   try {
-    // Ask for the link with the file name in the body, not the address: names contain "+" (from the
-    // plus code), which got signed as "%2B" and then failed the check ("InvalidSignature").
-    const [{ signedURL, error } = {}] = await cloud.request("/storage/v1/object/sign/photos", {
-      method: "POST", body: { expiresIn: 3600, paths: [chosen.storage_path] },
-    });
-    if (!signedURL) throw new Error(error || "no link returned");
+    const link = await photoLink(cloud, chosen);
     if (chosen?.file !== file) return;
-    img.src = `${SUPABASE_URL}/storage/v1${signedURL}`;
+    img.src = link;
     $("pick-link").href = img.src;
   } catch (err) {
     toast(`Couldn't load the photo: ${err.message}`, true);
@@ -401,11 +361,7 @@ $("pick-delete").addEventListener("click", async () => {
   const file = chosen.file;
   if (!confirm(`Delete ${file} from the farm's database?\n\nAny cover already accepted from it stays. This can't be undone (the phone that took it may still have the full-size copy).`)) return;
   try {
-    // Straight away (not queued): the picture, then the row. A missing picture is fine.
-    await cloud.request("/storage/v1/object/photos", { method: "DELETE", body: { prefixes: [chosen.storage_path] } });
-    await cloud.request(`/rest/v1/photos?farm_id=eq.${cloud.state.farmId}&file=eq.${encodeURIComponent(file)}`, {
-      method: "DELETE", headers: { Prefer: "return=minimal" },
-    });
+    await deleteFarmPhoto(cloud, chosen);
     store.removePhoto(file);
     toast(`Deleted ${file}`);
     chosen = null;
@@ -431,44 +387,19 @@ $("pick-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!chosen) return;
   const typed = $("pick-paddock").value.trim();
-  const paddock = store.paddocks.find((n) => n.toLowerCase() === typed.toLowerCase());
+  const paddock = findPaddock(store.paddocks, typed);
   if (!paddock) {
     toast(`"${typed}" isn't one of the farm's paddocks. Type its name, e.g. D01, and pick it from the list.`, true);
     $("pick-paddock").focus();
     return;
   }
   const cover = Math.round(Number($("pick-cover").value));
-  const taken = new Date(chosen.taken_at);
-  const day = isoDate(taken);
   const file = chosen.file;
-  const before = chosen.paddock && chosen.cover_accepted != null ? chosen.paddock : null;
   try {
-    const accepted_at = new Date().toISOString();
-    await cloud.request(`/rest/v1/photos?farm_id=eq.${cloud.state.farmId}&file=eq.${encodeURIComponent(file)}`, {
-      method: "PATCH", headers: { Prefer: "return=minimal" },
-      body: { paddock, cover_accepted: cover, accepted_at },
-    });
-    await rememberPoint(chosen, paddock).catch((err) => console.warn("paddock point:", err));
-    await Promise.all([fetchPhotos(), fetchPoints().catch(() => {})]); // fresh, so the other laptop's count too
-    // One cover reading per paddock per day: the average of every photo accepted for it that day.
-    // Same path as a cover typed on a phone, but method "photo" and the photos' own day.
-    const saveDay = (name) => {
-      const avg = photoDayCover(photos, name, day);
-      if (avg) cloud.coverMeasured(measureCover(store, name, avg.cover, taken, "photo"));
-      return avg;
-    };
-    const avg = saveDay(paddock);
-    let moved = "";
-    if (before && before !== paddock) {
-      const left = saveDay(before);
-      moved = left
-        ? ` ${before} is now ${left.cover} from ${left.count} photo(s).`
-        : ` ${before} keeps its earlier reading for that day: re-measure it if that's wrong.`;
-    }
-    await cloud.sync();
-    toast(avg.count > 1
-      ? `${paddock} on ${day}: average of ${avg.count} photos = ${avg.cover}.${moved}`
-      : `${paddock}: ${avg.cover} on ${day} saved (photo).${moved}`);
+    const done = await acceptPhoto(cloud, store, chosen, paddock, cover);
+    photos = done.photos;
+    points = done.points;
+    toast(done.message);
     drawMap(false);
     drawList();
     choose(file);

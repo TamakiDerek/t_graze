@@ -42,6 +42,13 @@ Android Chrome and has two jobs:
   green at 28-42°, level side to side). The tilt is written into the EXIF description and kept with the photo.
   **Phone camera** on that screen falls back to the phone's own camera (no guide, no tilt).
 
+The phone's tabs are **Grazing · Paddocks · Analysis · Photos · Check**. **Check** (needs signal; `app/check.js`)
+does the laptop's job on the phone, one photo at a time: the picture, a small aerial map of where it was taken
+(the farm's other photos as squares, accepted ones labelled with their paddock), Haiku's estimate and comment, and
+the paddock guess. **Accept** saves the paddock and cover and moves to the next photo; 🗑 there deletes the photo from
+the farm. The tab shows how many photos are waiting (e.g. **Check 12**). The laptop page and the Check tab share
+`app/photo-check.js` (fetching, paddock guess, accept, delete), so a cover accepted on either is the same reading.
+
 The Paddocks tab is a sortable table (tap a heading; tap again to reverse): **Last grazed** (days ago),
 **Cover** (kg DM/ha: an estimate tagged `e`: 1500 the day after grazing, then growing each day at a rate that depends on the cover reached, from `GROWTH_CURVE` in `app/model.js` (currently 50/day at 2000–2200, 2.5 less per 100 kg either side, minimum 15), or, once measured
 after the last grazing, the measured value from `paddocks.cover`/`cover_date` grown the same way since, tagged e.g.
@@ -111,6 +118,8 @@ comes back from the database on the next sync (the last 120 days of the log).
 | `app/model.js` | Data store, half-day slots, photo naming, CSV export (no DOM; unit tested) |
 | `app/pluscode.js` | Open Location Code encode/decode |
 | `app/exif.js` | Minimal JPEG EXIF writer (GPS, time, description) |
+| `app/photo-check.js` | Checking farm photos (fetch, paddock guess, accept, delete), shared by the laptop page and the Check tab |
+| `app/check.js` | The phone's Check tab |
 | `app/cloud.js` | Phone registration, upload queue and sync with Supabase (plain HTTP, no SDK) |
 | `app/config.js` | Supabase project URL and publishable key (public by design) |
 | `app/sw.js` | Service worker: works offline, refreshes from the network when there's signal |
