@@ -64,7 +64,7 @@ export class Cloud {
     this.state.dirtyLog ??= [];
     this.state.paddockOps ??= [];
     this.state.coverReadings ??= [];
-    this.state.photoDeletes ??= [];
+    delete this.state.photoDeletes; // phones no longer delete farm photos (v48): drop any still queued
     // Another copy of the app on this device (another tab, or the phone view inside the laptop page)
     // may refresh the shared sign-in. Pick its new one up straight away instead of reusing the old
     // refresh token, which Supabase would treat as stolen and sign both copies out.
@@ -99,7 +99,7 @@ export class Cloud {
     return Boolean(this.state.session && this.state.farmId);
   }
   get waiting() {
-    return this.state.dirtyLog.length + this.state.paddockOps.length + this.state.coverReadings.length + this.state.photoDeletes.length + this.pendingPhotoCount;
+    return this.state.dirtyLog.length + this.state.paddockOps.length + this.state.coverReadings.length + this.pendingPhotoCount;
   }
 
   saveState() {
@@ -156,14 +156,6 @@ export class Cloud {
   }
   async photoTaken(meta, blob) {
     await queuePhoto({ file: meta.file, meta, blob });
-    await this.countPhotos();
-    this.soon();
-  }
-  /** A photo was deleted on this phone: drop it from the upload queue and from the farm's database. */
-  async photoDeleted(file) {
-    await dropPhoto(file);
-    if (!this.state.photoDeletes.includes(file)) this.state.photoDeletes.push(file);
-    this.saveState();
     await this.countPhotos();
     this.soon();
   }
@@ -330,7 +322,6 @@ export class Cloud {
       await this.pushFeed();
       await this.expireOldPhotos();
       await this.pushPhotos();
-      await this.pushPhotoDeletes();
       await this.pull();
       this.state.lastSync = new Date().toISOString();
       this.error = null;
@@ -452,23 +443,6 @@ export class Cloud {
     await this.request(`/rest/v1/photos?farm_id=eq.${farm}&taken_at=lt.${encodeURIComponent(cutoff.toISOString())}`, {
       method: "DELETE", headers: { Prefer: "return=minimal" },
     });
-  }
-
-  async pushPhotoDeletes() {
-    const farm = this.state.farmId;
-    while (this.state.photoDeletes.length) {
-      const file = this.state.photoDeletes[0];
-      try {
-        await this.request(`/storage/v1/object/photos/${farm}/${encodeURIComponent(file)}`, { method: "DELETE" });
-      } catch (err) {
-        if (err.status !== 400 && err.status !== 404) throw err; // never uploaded: nothing to delete
-      }
-      await this.request(`/rest/v1/photos?farm_id=eq.${farm}&file=eq.${encodeURIComponent(file)}`, {
-        method: "DELETE", headers: { Prefer: "return=minimal" },
-      });
-      this.state.photoDeletes.shift();
-      this.saveState();
-    }
   }
 
   async pushPhotos() {

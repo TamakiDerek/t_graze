@@ -821,10 +821,10 @@ $("photo-list").addEventListener("click", async (event) => {
   const btn = event.target.closest("button.photo-del");
   if (!btn) return;
   const file = btn.dataset.file;
-  if (!confirm(`Delete ${file} from the app and the farm's database?\n\nThe copy in the phone's Download folder stays; delete that in the Files app if you want it gone.`)) return;
+  // Only this phone's list: the farm's copy stays for the laptop until the 3-day clean-up (or 🗑 there).
+  if (!confirm(`Remove ${file} from this phone's list?\n\nThe farm's copy stays on the laptop map until it's deleted automatically 3 days after it was taken (or delete it on the laptop). A photo still waiting to upload will still go up. The copy in the phone's Download folder stays; delete that in the Files app if you want it gone.`)) return;
   store.removePhoto(file);
-  await cloud.photoDeleted(file);
-  toast(`Deleted ${file}`);
+  toast(`Removed ${file} from this phone`);
   renderPhotos();
 });
 
