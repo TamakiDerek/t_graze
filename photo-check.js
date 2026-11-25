@@ -115,8 +115,14 @@ export async function acceptPhoto(cloud, store, photo, paddock, cover) {
   return { photos, points, message };
 }
 
-/** Deletes a photo from the farm straight away (not queued): the picture, then the row. */
+/**
+ * Deletes a photo from the farm straight away (not queued): the picture, then the row. Marked
+ * delete_requested first: on a farm that keeps its photos the database only lets marked ones go.
+ */
 export async function deleteFarmPhoto(cloud, photo) {
+  await cloud.request(`/rest/v1/photos?farm_id=eq.${cloud.state.farmId}&file=eq.${encodeURIComponent(photo.file)}`, {
+    method: "PATCH", headers: { Prefer: "return=minimal" }, body: { delete_requested: true },
+  });
   await cloud.request("/storage/v1/object/photos", { method: "DELETE", body: { prefixes: [photo.storage_path] } });
   await cloud.request(`/rest/v1/photos?farm_id=eq.${cloud.state.farmId}&file=eq.${encodeURIComponent(photo.file)}`, {
     method: "DELETE", headers: { Prefer: "return=minimal" },

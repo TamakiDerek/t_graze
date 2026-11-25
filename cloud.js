@@ -425,17 +425,22 @@ export class Cloud {
    * Photos are kept 3 days (PHOTO_KEEP_DAYS): older ones are deleted from this phone's list, its
    * upload queue, and the farm's database (picture and row). The cover readings made from them stay.
    * The full-size copies in the phone's Download folder are the phone owner's to keep or delete.
+   * A farm that keeps its photos (farms.keep_photos, supabase/keep-photos.sql) has none deleted from
+   * the farm, and a photo still waiting to upload stays queued; uploaded ones still leave this phone's list.
    */
   async expireOldPhotos(now = new Date()) {
     const cutoff = photoCutoff(now);
+    const farm = this.state.farmId;
+    const [f] = await this.request(`/rest/v1/farms?select=keep_photos&id=eq.${farm}`);
+    const keep = Boolean(f?.keep_photos);
     for (const p of [...this.store.photos]) {
-      if (new Date(p.taken) < cutoff) {
+      if (new Date(p.taken) < cutoff && (!keep || p.uploaded)) {
         this.store.removePhoto(p.file);
-        await dropPhoto(p.file);
+        if (!keep) await dropPhoto(p.file);
       }
     }
     await this.countPhotos();
-    const farm = this.state.farmId;
+    if (keep) return;
     const old = await this.request(
       `/rest/v1/photos?select=file,storage_path&farm_id=eq.${farm}&taken_at=lt.${encodeURIComponent(cutoff.toISOString())}`);
     if (!old.length) return;
