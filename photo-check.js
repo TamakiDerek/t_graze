@@ -124,9 +124,11 @@ export async function deleteFarmPhoto(cloud, photo) {
     method: "PATCH", headers: { Prefer: "return=minimal" }, body: { delete_requested: true },
   });
   await cloud.request("/storage/v1/object/photos", { method: "DELETE", body: { prefixes: [photo.storage_path] } });
-  await cloud.request(`/rest/v1/photos?farm_id=eq.${cloud.state.farmId}&file=eq.${encodeURIComponent(photo.file)}`, {
-    method: "DELETE", headers: { Prefer: "return=minimal" },
+  // The database says nothing when it refuses a delete, so check a row really went.
+  const gone = await cloud.request(`/rest/v1/photos?farm_id=eq.${cloud.state.farmId}&file=eq.${encodeURIComponent(photo.file)}&select=file`, {
+    method: "DELETE", headers: { Prefer: "return=representation" },
   });
+  if (!Array.isArray(gone) || !gone.length) throw new Error("the farm's database kept it (reload the page and try again)");
 }
 
 /** The paddock name as the farm has it, matched without caring about capitals; null if it isn't one. */
