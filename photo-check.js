@@ -5,12 +5,12 @@
 import { measureCover, isoDate, photoDayCover } from "./model.js";
 import { SUPABASE_URL } from "./config.js";
 
-const PHOTO_FIELDS = "file,taken_at,plus_code,latitude,longitude,accuracy_m,altitude_m,storage_path,paddock," +
+const PHOTO_FIELDS = "farm_id,file,taken_at,plus_code,latitude,longitude,accuracy_m,altitude_m,storage_path,paddock," +
   "cover_estimate,estimate_by,auto_estimate,auto_estimate_by,cover_accepted,accepted_at,uploaded_by";
 
-/** The farm's photos, newest first. */
-export function fetchFarmPhotos(cloud) {
-  return cloud.request(`/rest/v1/photos?select=${PHOTO_FIELDS}&farm_id=eq.${cloud.state.farmId}&order=taken_at.desc`);
+/** The farm's photos (or an adviser's own photo space's, if given), newest first. */
+export function fetchFarmPhotos(cloud, farm = cloud.state.farmId) {
+  return cloud.request(`/rest/v1/photos?select=${PHOTO_FIELDS}&farm_id=eq.${farm}&order=taken_at.desc`);
 }
 
 /** Where the paddocks are: one point per photo ever given a paddock (supabase/paddock-points.sql). */
@@ -120,12 +120,13 @@ export async function acceptPhoto(cloud, store, photo, paddock, cover) {
  * delete_requested first: on a farm that keeps its photos the database only lets marked ones go.
  */
 export async function deleteFarmPhoto(cloud, photo) {
-  await cloud.request(`/rest/v1/photos?farm_id=eq.${cloud.state.farmId}&file=eq.${encodeURIComponent(photo.file)}`, {
+  const farm = photo.farm_id ?? cloud.state.farmId; // an adviser's photo lives in their own space
+  await cloud.request(`/rest/v1/photos?farm_id=eq.${farm}&file=eq.${encodeURIComponent(photo.file)}`, {
     method: "PATCH", headers: { Prefer: "return=minimal" }, body: { delete_requested: true },
   });
   await cloud.request("/storage/v1/object/photos", { method: "DELETE", body: { prefixes: [photo.storage_path] } });
   // The database says nothing when it refuses a delete, so check a row really went.
-  const gone = await cloud.request(`/rest/v1/photos?farm_id=eq.${cloud.state.farmId}&file=eq.${encodeURIComponent(photo.file)}&select=file`, {
+  const gone = await cloud.request(`/rest/v1/photos?farm_id=eq.${farm}&file=eq.${encodeURIComponent(photo.file)}&select=file`, {
     method: "DELETE", headers: { Prefer: "return=representation" },
   });
   if (!Array.isArray(gone) || !gone.length) throw new Error("the farm's database kept it (reload the page and try again)");

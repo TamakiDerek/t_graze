@@ -843,7 +843,7 @@ function renderSync() {
   const waiting = cloud.waiting;
   renderOwner();
   document.body.classList.toggle("adviser", cloud.adviser);
-  if (cloud.adviser && ["photos", "check"].includes(document.body.dataset.tab)) showTab("log");
+  $("check-label").textContent = cloud.adviser ? "Review" : "Accept";
   chip.classList.toggle("bad", Boolean(cloud.error));
   chip.textContent = cloud.busy ? "☁ …" : !cloud.approved ? "☁ off" : waiting ? `☁ ${waiting}` : "☁ ✓";
 

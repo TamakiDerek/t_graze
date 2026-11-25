@@ -24,11 +24,12 @@
     <button role="tab" data-tab="paddocks" aria-selected="false">Paddocks</button>
     <button role="tab" data-tab="analysis" aria-selected="false">Analysis</button>
     <button role="tab" data-tab="photos" aria-selected="false">Photos</button>
-    <button role="tab" data-tab="check" aria-selected="false">Accept <span id="check-count" class="badge" hidden></span></button>
+    <button role="tab" data-tab="check" aria-selected="false"><span id="check-label">Accept</span> <span id="check-count" class="badge" hidden></span></button>
   </nav>
 
   <main>
-    <p class="adviser-note">Adviser view: you see the farm as its phones do, but can't change anything or add photos.</p>
+    <p class="adviser-note">Adviser view: you see the farm as its phones do, but can't change it. Your photos go to
+      your own adviser space (see Review), not to the farm, and stay until you delete them.</p>
     <section id="tab-log" class="tab">
       <table class="log">
         <thead><tr><th>Half-day</th><th>Paddock</th><th>Paddock</th></tr></thead>
@@ -186,7 +187,9 @@
             <button id="check-delete" class="plain" type="button" aria-label="Delete this photo from the farm">🗑</button>
           </div>
         </form>
-        <p class="hint">Only photos taken on this phone show here; the laptop shows everyone's.
+        <p class="hint adviser-hint">Your photos from every farm you've visited, newest last, with Haiku's estimate.
+          They stay until you delete them with 🗑. Tap the photo to see it full size.</p>
+        <p class="hint farm-hint">Only photos taken on this phone show here; the laptop shows everyone's.
           Accept saves the paddock and cover and moves to the next photo. Photos of the same paddock on the
           same day are averaged into one reading. 🗑 here deletes the photo from the farm (laptop and every phone).
           Tap the photo to see it full size.</p>

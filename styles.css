@@ -322,19 +322,21 @@ body[data-tab="check"] .camera { display: none; }
 }
 .check-act button:disabled { opacity: 0.6; }
 
-/* Adviser accounts (supabase/advisers.sql): view only. No camera, no Photos or Accept tabs, nothing to edit. */
+/* Adviser accounts (supabase/advisers.sql): the farm is view only; their photos go to their own space,
+   reviewed on the Review (Accept) tab without accepting. */
 .adviser-note { display: none; }
 body.adviser .adviser-note {
   display: block; margin: 8px 12px 0; padding: 8px 10px; border-radius: 8px;
   background: rgba(127, 127, 127, 0.15); font-size: 0.9rem;
 }
-body.adviser .camera,
-body.adviser .tabs [data-tab="photos"],
-body.adviser .tabs [data-tab="check"],
+body.adviser #check-form > :not(.check-act),
+body.adviser #check-accept,
+body.adviser .farm-hint,
 body.adviser #add-paddock,
 body.adviser #pick-form,
 body.adviser #pick-delete { display: none !important; }
-body.adviser .tabs { grid-template-columns: repeat(3, 1fr); }
+.adviser-hint { display: none; }
+body.adviser .adviser-hint { display: block; }
 body.adviser #log-rows,
 body.adviser #tab-paddocks tbody,
 body.adviser #feed-form { pointer-events: none; }
