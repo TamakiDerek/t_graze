@@ -51,7 +51,7 @@ between the starts of the last two grazings; entries up to 3 days apart count as
 grazing rotation (e.g. for hay) or put it back: a bar from 1000 to 4000 kg DM/ha (solid = measured, pale = estimate) and the feed available,
 `(cover - 1500) × ha` kg DM (never below 0), with the farm total. Below it, **Feed ahead** forecasts the average farm cover for 3 weeks, one bar per day, over the paddocks in the rotation: enter cows and
 kg DM/cow/day (a farm setting shared by every phone, `farms.herd_cows`/`intake_kg`; 160 × 20 until someone changes it); each day every paddock grows on the curve, then
-the herd eats from the highest paddock down to 1500 before moving on. A day table lists the paddocks grazed and
+the herd eats from the highest paddock down to 1500 before moving on. Paddocks already in today's log are eaten first, in log order, only as far as the day's demand goes; what's left of them is finished first the next day. A day table lists the paddocks grazed and
 any shortfall.
 
 The Paddocks tab also

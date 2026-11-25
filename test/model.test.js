@@ -240,6 +240,27 @@ test("feed forecast: grows, eats the top paddock first, carries part-eaten paddo
   assert.equal(f.days[3].date, "2026-11-24");
 });
 
+test("feed forecast: today's logged paddocks are eaten only as far as today's demand, the rest carried over", () => {
+  const s = new Store(memory());
+  for (const p of ["B03", "D01", "Top"]) s.addPaddock(p);
+  const now = new Date(2026, 10, 25, 9, 0);
+  s.data.covers = { B03: { value: 2500, date: "2026-11-25" }, D01: { value: 2700, date: "2026-11-25" }, Top: { value: 3000, date: "2026-11-25" } };
+  s.setArea("B03", 1);
+  s.setArea("D01", 1);
+  s.setArea("Top", 2);
+  s.setSlot("2026-11-25 am", 0, "B03");
+  s.setSlot("2026-11-25 am", 1, "D01");
+  const f = forecastFeed(s, now, { cows: 100, perCow: 12, days: 2 }); // 1200 kg a day
+  // today: all of B03 (1000 kg) and 200 of D01's 1200 kg; Top, not logged, untouched
+  assert.deepEqual(f.days[0].grazed, [{ name: "B03", finished: true }, { name: "D01", finished: false }]);
+  assert.equal(f.days[0].shortfall, 0);
+  const top1 = 3000 + growthRate(3000);
+  assert.equal(f.days[0].available, 1000 + 3000);
+  // tomorrow: the rest of D01 (1000 kg, not grown) is finished before Top, the highest, is started (200 kg)
+  assert.deepEqual(f.days[1].grazed.map((g) => [g.name, g.finished]), [["D01", true], ["Top", false]]);
+  assert.equal(f.days[1].available, Math.round((top1 - 1500) * 2 - 200));
+});
+
 test("feed forecast: reports a shortfall when nothing is left above the residual", () => {
   const s = new Store(memory());
   s.addPaddock("Only");

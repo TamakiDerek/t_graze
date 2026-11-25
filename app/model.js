@@ -233,10 +233,13 @@ export function coverRanking(store, now) {
  * Feed budget ahead: day by day, every paddock grows on the curve, then the herd eats cows x perCow kg DM,
  * taking the highest-cover paddock down to GRAZE_TO before moving to the next (a part-eaten paddock is
  * finished first the next day). A paddock eaten out sits at GRAZE_TO the next day and grows from the day
- * after, as in the cover estimate. Paddocks already grazed today count as eaten. Only paddocks in the
- * rotation with both a cover and an area take part.
+ * after, as in the cover estimate. Paddocks entered in today's log are eaten today in log order (am before
+ * pm, first box before second), only as far as today's demand goes: what's left of them is eaten first
+ * tomorrow, before the forecast picks the highest paddock. Only paddocks in the rotation with both a
+ * cover and an area take part.
  * Returns { demand, area, excluded: [names], out: [names], days: [{ date, afc, available, grazed: [{ name, finished }], shortfall }] }
- * with days[0] = today (before any forecast eating). afc = average farm cover, kg DM/ha.
+ * with days[0] = today, after eating from today's logged paddocks (none logged: nothing eaten, no
+ * shortfall). afc = average farm cover, kg DM/ha.
  */
 /**
  * How sure the feed ahead is: today is known; each day further out the average cover could be this
@@ -279,8 +282,7 @@ export function forecastFeed(store, now, { cows, perCow, days = 21, curve = GROW
       excluded.push(r.name);
       continue;
     }
-    const today = r.lastDays === 0;
-    pads.push({ name: r.name, area, cover: today ? GRAZE_TO : r.cover, grazedOn: today ? 0 : -Infinity });
+    pads.push({ name: r.name, area, cover: r.cover, grazedOn: -Infinity });
   }
   const area = pads.reduce((s, p) => s + p.area, 0);
   const start = dayNumber(isoDate(now));
@@ -291,14 +293,25 @@ export function forecastFeed(store, now, { cows, perCow, days = 21, curve = GROW
     grazed,
     shortfall: Math.round(shortfall),
   });
-  const result = [snapshot(0, [], 0)];
+  // Today's logged paddocks, in log order: eaten before anything else.
+  const queue = [];
+  for (const half of ["am", "pm"]) {
+    for (const name of store.getSlot(`${isoDate(now)} ${half}`)) {
+      const p = pads.find((x) => x.name === name);
+      if (p && !queue.includes(p)) queue.push(p);
+    }
+  }
   let open = null; // paddock the herd is part way through
-  for (let d = 1; d <= days; d++) {
-    for (const p of pads) if (p !== open && d >= p.grazedOn + 2) p.cover += growthRate(p.cover, curve);
-    let need = demand;
+  // Eats `need` kg; with onlyQueue, stops when the queue runs out. Returns [grazed, need left].
+  const eat = (need, d, onlyQueue) => {
     const grazed = [];
     while (need > 0.5) {
+      while (!open && queue.length) {
+        const next = queue.shift();
+        if (next.cover > GRAZE_TO) open = next;
+      }
       if (!open) {
+        if (onlyQueue) break;
         open = pads.filter((p) => p.cover > GRAZE_TO).sort((a, b) => b.cover - a.cover)[0] ?? null;
         if (!open) break; // nothing left above the residual
       }
@@ -315,6 +328,12 @@ export function forecastFeed(store, now, { cows, perCow, days = 21, curve = GROW
         grazed.push({ name: open.name, finished: false });
       }
     }
+    return [grazed, need];
+  };
+  const result = [snapshot(0, queue.length ? eat(demand, 0, true)[0] : [], 0)];
+  for (let d = 1; d <= days; d++) {
+    for (const p of pads) if (p !== open && !queue.includes(p) && d >= p.grazedOn + 2) p.cover += growthRate(p.cover, curve);
+    const [grazed, need] = eat(demand, d, false);
     result.push(snapshot(d, grazed, need > 0.5 ? need : 0));
   }
   return { demand, area: Math.round(area * 100) / 100, excluded, out, days: result };
