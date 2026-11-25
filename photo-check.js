@@ -6,7 +6,7 @@ import { measureCover, isoDate, photoDayCover } from "./model.js";
 import { SUPABASE_URL } from "./config.js";
 
 const PHOTO_FIELDS = "file,taken_at,plus_code,latitude,longitude,accuracy_m,altitude_m,storage_path,paddock," +
-  "cover_estimate,estimate_by,auto_estimate,auto_estimate_by,cover_accepted,accepted_at";
+  "cover_estimate,estimate_by,auto_estimate,auto_estimate_by,cover_accepted,accepted_at,uploaded_by";
 
 /** The farm's photos, newest first. */
 export function fetchFarmPhotos(cloud) {

@@ -1,4 +1,4 @@
-// The phone's Check tab: go through the farm's photos that haven't been accepted yet, one at a time,
+// The phone's Accept tab: go through this phone's photos that haven't been accepted yet, one at a time,
 // the way the laptop map does it. Each card shows the picture, a small map of where it was taken,
 // Haiku's estimate and comment, and a paddock guess; Accept saves the paddock and cover and moves on.
 // Needs signal (it reads and writes the farm's database straight away); without it the tab says so.
@@ -51,11 +51,14 @@ async function load() {
   rebuild();
 }
 
-// The pile to check, oldest first. Stays on the same photo if it's still there; otherwise on the one
+// Only this phone's own photos: the laptop sees and accepts everyone's.
+const mine = (p) => p.uploaded_by != null && p.uploaded_by === cloud.state.session?.user_id;
+
+// The pile to check (this phone's, not yet accepted), oldest first. Stays on the same photo if it's still there; otherwise on the one
 // that slid into its place (the next one), or back to the first after the last.
 function rebuild() {
   const was = queue[at];
-  queue = photos.filter(unchecked).sort((a, b) => a.taken_at.localeCompare(b.taken_at)).map((p) => p.file);
+  queue = photos.filter((p) => mine(p) && unchecked(p)).sort((a, b) => a.taken_at.localeCompare(b.taken_at)).map((p) => p.file);
   const i = queue.indexOf(was);
   at = i >= 0 ? i : at < queue.length ? at : 0;
 }
@@ -106,9 +109,10 @@ const current = () => photos.find((p) => p.file === queue[at]);
 async function drawCard() {
   const p = current();
   if (!p) {
-    $("check-done-text").textContent = photos.length
-      ? `All ${photos.length} photos on the farm have been checked.`
-      : "No photos on the farm yet. Take some with 📷 on the Photos tab.";
+    const own = photos.filter(mine).length;
+    $("check-done-text").textContent = own
+      ? `All ${own} photos from this phone have been accepted. Photos from other phones are accepted on the laptop (or on the phone that took them).`
+      : "No photos from this phone on the farm yet. Take some with 📷 on the Photos tab; they show here once they've uploaded.";
     return show("check-done");
   }
   show("check-card");
