@@ -68,7 +68,7 @@ async function start() {
 
 async function fetchPhotos() {
   photos = await cloud.request(
-    `/rest/v1/photos?select=file,taken_at,plus_code,latitude,longitude,accuracy_m,altitude_m,storage_path,paddock,cover_estimate,estimate_by,cover_accepted,accepted_at&farm_id=eq.${cloud.state.farmId}&order=taken_at.desc`);
+    `/rest/v1/photos?select=file,taken_at,plus_code,latitude,longitude,accuracy_m,altitude_m,storage_path,paddock,cover_estimate,estimate_by,auto_estimate,auto_estimate_by,cover_accepted,accepted_at&farm_id=eq.${cloud.state.farmId}&order=taken_at.desc`);
 }
 // Where the map opens: the farm's saved home view, or (until one is saved) the middle of its photos.
 let home = null;
@@ -132,6 +132,29 @@ async function loadPhotos() {
   drawList();
   checkSizes().catch((err) => console.warn("photo sizes:", err));
 }
+
+// New photos and estimates arrive while the page is open: look again every minute and when the
+// window comes back to the front, without moving the map or losing the photo being looked at.
+let refreshing = false;
+async function refreshPhotos() {
+  if (refreshing || $("main").hidden || document.hidden) return;
+  refreshing = true;
+  try {
+    const before = JSON.stringify(photos);
+    await fetchPhotos();
+    if (JSON.stringify(photos) === before) return;
+    if (chosen) chosen = photos.find((p) => p.file === chosen.file) ?? chosen;
+    drawMap(false);
+    drawList();
+  } catch (err) {
+    console.warn("refresh photos:", err);
+  } finally {
+    refreshing = false;
+  }
+}
+setInterval(refreshPhotos, 60_000);
+document.addEventListener("visibilitychange", refreshPhotos);
+window.addEventListener("focus", refreshPhotos);
 
 // Photos uploaded before v37 went up full size (6-7 MB). Offer to replace them with ~0.5 MB copies.
 let bigPhotos = [];
@@ -317,7 +340,7 @@ function drawList() {
     return li;
   });
   $("photo-list").replaceChildren(...items);
-  const waiting = photos.filter((p) => coverOf(p) == null).length;
+  const waiting = photos.filter((p) => coverOf(p) == null && p.auto_estimate == null).length;
   $("waiting-count").hidden = !waiting;
   $("waiting-count").textContent = waiting === 1 ? "1 new photo is waiting for a cover estimate."
     : `${waiting} new photos are waiting for a cover estimate.`;
@@ -345,7 +368,8 @@ async function choose(file) {
       (guess.others ? " (another paddock is close too, so check the fence line)." : ".");
   }
   $("pick-cover").value = coverOf(chosen) ?? "";
-  $("pick-est").textContent = chosen.cover_estimate == null ? "No estimate yet: type the cover."
+  $("pick-est").textContent = chosen.cover_estimate == null
+    ? (chosen.auto_estimate_by ? `No estimate (${chosen.auto_estimate_by}). Type the cover, or delete the photo.` : "No estimate yet: type the cover.")
     : `Estimated ${chosen.cover_estimate} (${chosen.estimate_by ?? "estimate"}).`;
   const sameDay = chosen.paddock ? photoDayCover(photos, chosen.paddock, isoDate(new Date(chosen.taken_at))) : null;
   $("pick-note").textContent = chosen.cover_accepted != null
