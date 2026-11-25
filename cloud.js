@@ -88,12 +88,16 @@ export class Cloud {
     if (!theirs || (mine && theirs.user_id !== mine.user_id)) return false;
     if (mine && theirs.expires_at <= mine.expires_at) return false;
     this.state.session = theirs;
-    for (const k of ["code", "farmId", "farmName"]) this.state[k] ??= stored[k];
+    for (const k of ["code", "farmId", "farmName", "role"]) this.state[k] ??= stored[k];
     return true;
   }
 
   get configured() {
     return Boolean(SUPABASE_URL && SUPABASE_KEY);
+  }
+  /** An adviser account (supabase/advisers.sql): sees the farm, changes nothing, takes no farm photos. */
+  get adviser() {
+    return this.state.role === "adviser";
   }
   get approved() {
     return Boolean(this.state.session && this.state.farmId);
@@ -288,10 +292,16 @@ export class Cloud {
   /** True once the phone has been approved for a farm. */
   async checkApproval() {
     const farms = await this.request(
-      `/rest/v1/farm_members?select=farm_id,farms(name)&user_id=eq.${this.state.session.user_id}`);
+      `/rest/v1/farm_members?select=farm_id,role,farms(name)&user_id=eq.${this.state.session.user_id}`);
     if (!farms.length) return false;
+    farms.sort((a, b) => (a.role === "adviser") - (b.role === "adviser")); // the farm's own device first
     this.state.farmId = farms[0].farm_id;
     this.state.farmName = farms[0].farms?.name ?? "";
+    this.state.role = farms[0].role;
+    if (this.adviser) {
+      this.saveState();
+      return true; // nothing of an adviser's goes up to the farm
+    }
     // Everything already on the phone goes up with the first sync.
     this.state.dirtyLog = Object.keys(this.store.data.log);
     this.state.paddockOps = this.store.paddocks.flatMap((name) => [
@@ -302,6 +312,16 @@ export class Cloud {
     this.state.feedDirty = Boolean(localStorage.getItem(FEED_KEY));
     this.saveState();
     return true;
+  }
+
+  /** This device's role on its farm, in case it was changed (e.g. made an adviser) since approval. */
+  async checkRole() {
+    const [m] = await this.request(
+      `/rest/v1/farm_members?select=role&farm_id=eq.${this.state.farmId}&user_id=eq.${this.state.session.user_id}`);
+    if (m && m.role !== this.state.role) {
+      this.state.role = m.role;
+      this.saveState();
+    }
   }
 
   // ---------- sync ----------
@@ -316,12 +336,21 @@ export class Cloud {
         this.error = null; // waiting for approval is not an error
         return;
       }
-      await this.pushPaddocks();
-      await this.pushLog();
-      await this.pushCovers();
-      await this.pushFeed();
-      await this.expireOldPhotos();
-      await this.pushPhotos();
+      await this.checkRole();
+      if (this.adviser) {
+        // View only: anything changed on this device is dropped, and the farm's data replaces it.
+        this.state.dirtyLog = [];
+        this.state.paddockOps = [];
+        this.state.coverReadings = [];
+        this.state.feedDirty = false;
+      } else {
+        await this.pushPaddocks();
+        await this.pushLog();
+        await this.pushCovers();
+        await this.pushFeed();
+        await this.expireOldPhotos();
+        await this.pushPhotos();
+      }
       await this.pull();
       this.state.lastSync = new Date().toISOString();
       this.error = null;

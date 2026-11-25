@@ -44,7 +44,7 @@ function toast(message, isError = false) {
 }
 
 function showStatus() {
-  $("status").textContent = cloud.error ? `Sync problem: ${cloud.error}` : cloud.busy ? "Syncing…" : cloud.approved ? `Farm ${cloud.state.farmName ?? ""}` : "Not approved";
+  $("status").textContent = cloud.error ? `Sync problem: ${cloud.error}` : cloud.busy ? "Syncing…" : cloud.approved ? `${cloud.adviser ? "Adviser view of farm" : "Farm"} ${cloud.state.farmName ?? ""}` : "Not approved";
 }
 
 const when = (iso) => new Date(iso).toLocaleString("en-NZ", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -60,6 +60,7 @@ async function start() {
   }
   $("approve").hidden = true;
   $("main").hidden = false;
+  document.body.classList.toggle("adviser", cloud.adviser); // view only: no accepting or deleting photos
   let phoneOn = false;
   try { phoneOn = localStorage.getItem(PHONE_KEY) === "1"; } catch {}
   showPhone(phoneOn);

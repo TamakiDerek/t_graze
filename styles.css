@@ -321,3 +321,20 @@ body[data-tab="check"] .camera { display: none; }
   flex: 1; padding: 12px 16px; border: 0; border-radius: 8px; background: var(--brand); color: var(--brand-ink); font-weight: 600;
 }
 .check-act button:disabled { opacity: 0.6; }
+
+/* Adviser accounts (supabase/advisers.sql): view only. No camera, no Photos or Accept tabs, nothing to edit. */
+.adviser-note { display: none; }
+body.adviser .adviser-note {
+  display: block; margin: 8px 12px 0; padding: 8px 10px; border-radius: 8px;
+  background: rgba(127, 127, 127, 0.15); font-size: 0.9rem;
+}
+body.adviser .camera,
+body.adviser .tabs [data-tab="photos"],
+body.adviser .tabs [data-tab="check"],
+body.adviser #add-paddock,
+body.adviser #pick-form,
+body.adviser #pick-delete { display: none !important; }
+body.adviser .tabs { grid-template-columns: repeat(3, 1fr); }
+body.adviser #log-rows,
+body.adviser #tab-paddocks tbody,
+body.adviser #feed-form { pointer-events: none; }

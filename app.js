@@ -842,6 +842,8 @@ function renderSync() {
   const chip = $("sync");
   const waiting = cloud.waiting;
   renderOwner();
+  document.body.classList.toggle("adviser", cloud.adviser);
+  if (cloud.adviser && ["photos", "check"].includes(document.body.dataset.tab)) showTab("log");
   chip.classList.toggle("bad", Boolean(cloud.error));
   chip.textContent = cloud.busy ? "☁ …" : !cloud.approved ? "☁ off" : waiting ? `☁ ${waiting}` : "☁ ✓";
 
@@ -860,7 +862,7 @@ function renderSync() {
             ? "Waiting for approval. Fill in your name and email below, then send this code to the farm manager. It checks again every minute."
             : "Registering…";
   } else {
-    $("sync-who").textContent = `Approved for ${cloud.state.farmName || "the farm"} · phone ${cloud.displayCode}`
+    $("sync-who").textContent = `${cloud.adviser ? "Adviser view of" : "Approved for"} ${cloud.state.farmName || "the farm"} · device ${cloud.displayCode}`
       + (cloud.state.owner?.name ? ` · ${cloud.state.owner.name}` : "");
     $("sync-status").textContent = cloud.busy
       ? "Syncing…"
