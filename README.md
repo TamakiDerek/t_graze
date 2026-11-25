@@ -43,7 +43,7 @@ Android Chrome and has two jobs:
   **Phone camera** on that screen falls back to the phone's own camera (no guide, no tilt).
 
 The phone's tabs are **Grazing · Paddocks · Analysis · Photos · Accept**. **Accept** (needs signal; `app/check.js`)
-does the laptop's job on the phone, one photo at a time: the picture, a small aerial map of where it was taken
+does the laptop's job on the phone, one photo at a time: a small aerial map of where it was taken, the whole picture
 (the farm's other photos as squares, accepted ones labelled with their paddock), Haiku's estimate and comment, and
 the paddock guess. **Accept** saves the paddock and cover and moves to the next photo; 🗑 there deletes the photo from
 the farm. The tab shows how many photos are waiting (e.g. **Accept 12**). The laptop page and the Accept tab share
