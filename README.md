@@ -35,7 +35,8 @@ Android Chrome and has two jobs:
   farm's database is smaller (`photo-size.js`: 1400 px on the long side, quality 0.7, about 0.5 MB); the laptop page offers to
   shrink any photo that went up full size before that. Photos are deleted from the app and the database 3 days after
   the day they were taken (`PHOTO_KEEP_DAYS`, done by whichever phone or laptop syncs); cover readings made from them
-  stay. 🗑 on the phone only takes a photo off that phone's list (it still uploads if it hasn't yet); the farm's copy
+  stay. A farm with `farms.keep_photos` (`supabase/keep-photos.sql`, set by Tamaki) keeps them until someone deletes
+  one; the database enforces it (only photos marked `delete_requested` by 🗑 can go). 🗑 on the phone only takes a photo off that phone's list (it still uploads if it hasn't yet); the farm's copy
   stays until the 3-day clean-up or 🗑 Delete this photo on the laptop page.
   📷 opens the app's own camera with a guide for a **standard photo**: phone at 1 m (belt height), no shadow,
   step forward so the toe is at the bottom, tilted forward about 35° from straight down (the tilt meter goes
