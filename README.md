@@ -111,8 +111,10 @@ nothing, can't approve itself and can't join a farm.
 **Adviser accounts** (`supabase/advisers.sql`): a consultant, farm accountant or field rep who looks at a farm
 but doesn't run it. Approve their device with `select public.approve_adviser('3F9-A21', '77207', 'Name', 'email');`
 (the app shows one farm per device for now; choosing between farms is still to come). The database makes them view-only (`farm_members.role = 'adviser'`):
-they read everything but can't change paddocks, grazing, covers, feed settings or photos. The app hides the camera,
-Photos and Accept tabs, and drops anything changed on the device at each sync. Still one approval per device; a
+they read everything but can't change paddocks, grazing, covers, feed settings or the farm's photos. Their own photos
+go to their **adviser space** (a `farms` row of kind `adviser`, made by `approve_adviser`, kept until they delete),
+never to the farm they're visiting; the Accept tab becomes **Review** (their photos with Haiku's estimate, 🗑 only). The app
+drops anything changed on the device at each sync. Still one approval per device; a
 sign-in that follows the person across devices (email) is still to come.
 
 If Chrome's site data for the app is cleared, the phone gets a new code and needs approving again.

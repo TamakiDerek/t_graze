@@ -88,7 +88,7 @@ export class Cloud {
     if (!theirs || (mine && theirs.user_id !== mine.user_id)) return false;
     if (mine && theirs.expires_at <= mine.expires_at) return false;
     this.state.session = theirs;
-    for (const k of ["code", "farmId", "farmName", "role"]) this.state[k] ??= stored[k];
+    for (const k of ["code", "farmId", "farmName", "role", "photoFarmId"]) this.state[k] ??= stored[k];
     return true;
   }
 
@@ -218,6 +218,7 @@ export class Cloud {
         this.state.session = null;
         this.state.code = null;
         this.state.farmId = null;
+        this.state.photoFarmId = null;
         this.saveState();
       }
       throw err;
@@ -248,6 +249,7 @@ export class Cloud {
       this.setSession(await this.request("/auth/v1/signup", { method: "POST", auth: false, body: {} }));
       this.state.code = null;
       this.state.farmId = null;
+      this.state.photoFarmId = null;
     }
     if (!this.state.code) {
       const code = this.state.session.user_id.replace(/-/g, "").slice(0, 6).toUpperCase();
@@ -291,17 +293,8 @@ export class Cloud {
 
   /** True once the phone has been approved for a farm. */
   async checkApproval() {
-    const farms = await this.request(
-      `/rest/v1/farm_members?select=farm_id,role,farms(name)&user_id=eq.${this.state.session.user_id}`);
-    if (!farms.length) return false;
-    farms.sort((a, b) => (a.role === "adviser") - (b.role === "adviser")); // the farm's own device first
-    this.state.farmId = farms[0].farm_id;
-    this.state.farmName = farms[0].farms?.name ?? "";
-    this.state.role = farms[0].role;
-    if (this.adviser) {
-      this.saveState();
-      return true; // nothing of an adviser's goes up to the farm
-    }
+    if (!(await this.readMemberships())) return false;
+    if (this.adviser) return true; // nothing of an adviser's goes up to the farm (photos go to their own space)
     // Everything already on the phone goes up with the first sync.
     this.state.dirtyLog = Object.keys(this.store.data.log);
     this.state.paddockOps = this.store.paddocks.flatMap((name) => [
@@ -314,14 +307,29 @@ export class Cloud {
     return true;
   }
 
-  /** This device's role on its farm, in case it was changed (e.g. made an adviser) since approval. */
-  async checkRole() {
-    const [m] = await this.request(
-      `/rest/v1/farm_members?select=role&farm_id=eq.${this.state.farmId}&user_id=eq.${this.state.session.user_id}`);
-    if (m && m.role !== this.state.role) {
-      this.state.role = m.role;
-      this.saveState();
-    }
+  /**
+   * Which farm this device shows, its role there, and where its photos go. A farm's own device: the
+   * farm, for both. An adviser: the farm they were let in to (view only), and their own photo space
+   * (a farms row of kind 'adviser', supabase/advisers.sql). False if it's on no farm yet.
+   */
+  async readMemberships() {
+    const rows = await this.request(
+      `/rest/v1/farm_members?select=farm_id,role,farms(name,kind)&user_id=eq.${this.state.session.user_id}`);
+    const farms = rows.filter((m) => (m.farms?.kind ?? "farm") === "farm")
+      .sort((a, b) => (a.role === "adviser") - (b.role === "adviser")); // the farm's own device first
+    if (!farms.length) return false;
+    const space = rows.find((m) => m.farms?.kind === "adviser");
+    this.state.farmId = farms[0].farm_id;
+    this.state.farmName = farms[0].farms?.name ?? "";
+    this.state.role = farms[0].role;
+    this.state.photoFarmId = space?.farm_id ?? farms[0].farm_id;
+    this.saveState();
+    return true;
+  }
+
+  /** Where this device's photos go: the farm, or an adviser's own photo space. */
+  get photoFarm() {
+    return this.state.photoFarmId ?? this.state.farmId;
   }
 
   // ---------- sync ----------
@@ -336,13 +344,15 @@ export class Cloud {
         this.error = null; // waiting for approval is not an error
         return;
       }
-      await this.checkRole();
+      await this.readMemberships(); // in case the role changed since approval
       if (this.adviser) {
         // View only: anything changed on this device is dropped, and the farm's data replaces it.
+        // Photos go up to the adviser's own space, kept until they delete them.
         this.state.dirtyLog = [];
         this.state.paddockOps = [];
         this.state.coverReadings = [];
         this.state.feedDirty = false;
+        await this.pushPhotos();
       } else {
         await this.pushPaddocks();
         await this.pushLog();
@@ -480,7 +490,7 @@ export class Cloud {
   }
 
   async pushPhotos() {
-    const farm = this.state.farmId;
+    const farm = this.photoFarm; // an adviser's go to their own space, not the farm they're visiting
     for (const { file, meta, blob } of await pendingPhotos()) {
       const path = `${farm}/${file}`;
       await this.request(`/storage/v1/object/photos/${farm}/${encodeURIComponent(file)}`, {

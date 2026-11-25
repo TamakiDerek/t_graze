@@ -46,7 +46,8 @@ export async function updateCheckCount(force = false) {
 }
 
 async function load() {
-  [photos, points] = await Promise.all([fetchFarmPhotos(cloud), fetchPoints(cloud).catch(() => [])]);
+  // An adviser sees their own photo space (photos from every farm they've been on), not the farm's.
+  [photos, points] = await Promise.all([fetchFarmPhotos(cloud, cloud.photoFarm), cloud.adviser ? [] : fetchPoints(cloud).catch(() => [])]);
   loadedAt = Date.now();
   rebuild();
 }
@@ -110,7 +111,9 @@ async function drawCard() {
   const p = current();
   if (!p) {
     const own = photos.filter(mine).length;
-    $("check-done-text").textContent = own
+    $("check-done-text").textContent = cloud.adviser
+      ? "No photos in your adviser space yet. Take some with 📷; they show here (with Haiku's estimate) once they've uploaded."
+      : own
       ? `All ${own} photos from this phone have been accepted. Photos from other phones are accepted on the laptop (or on the phone that took them).`
       : "No photos from this phone on the farm yet. Take some with 📷 on the Photos tab; they show here once they've uploaded.";
     return show("check-done");
@@ -120,7 +123,7 @@ async function drawCard() {
   $("check-back").disabled = $("check-skip").disabled = queue.length < 2;
   $("check-when").textContent = `${when(p.taken_at)} · ${p.plus_code.slice(4)} · ±${Math.round(p.accuracy_m ?? 0)} m`;
   $("check-est").textContent = estimateText(p);
-  const guess = p.paddock ? null : guessPaddock(p, photos, points, store.paddocks);
+  const guess = p.paddock || cloud.adviser ? null : guessPaddock(p, photos, points, store.paddocks);
   $("check-paddock").value = p.paddock ?? guess?.paddock ?? "";
   $("check-guess").hidden = !guess;
   if (guess) $("check-guess").textContent = guessText(guess);
