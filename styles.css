@@ -54,7 +54,7 @@ button, input { font: inherit; color: inherit; }
 
 .tabs {
   position: sticky; top: var(--bar-h, 46px); z-index: 2;
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  display: grid; grid-template-columns: repeat(5, 1fr);
   background: var(--card); border-bottom: 1px solid var(--line);
 }
 .tabs button {
@@ -292,3 +292,32 @@ h2 { font-size: 1rem; margin: 24px 0 4px; }
 .cam-shoot { flex: none; width: 76px; height: 76px; border-radius: 50%; border: 5px solid #fff; background: #9aa597; }
 .cam-shoot.good { background: #6ee7a0; }
 .cam-shoot:disabled { opacity: 0.4; }
+
+/* Check tab: one farm photo at a time (check.js) */
+.tabs button { font-size: 0.92rem; white-space: nowrap; }
+.badge {
+  display: inline-block; min-width: 1.4em; padding: 0 5px; border-radius: 9px; margin-left: 2px;
+  background: var(--brand); color: var(--brand-ink); font-size: 0.72rem; font-weight: 600; line-height: 1.4em;
+}
+body[data-tab="check"] .camera { display: none; }
+.check-msg { margin: 24px 4px; }
+.check-nav { display: flex; align-items: center; justify-content: space-between; margin: 2px 0 8px; }
+.check-nav .plain, .check-act .plain {
+  padding: 8px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink);
+}
+.check-nav .plain:disabled { opacity: 0.4; }
+.check-photo { display: block; border-radius: 10px; overflow: hidden; background: #0b0d0b; height: 40vh; min-height: 220px; }
+.check-photo img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.check-photo img:not([src]) { visibility: hidden; }
+.check-map { height: 170px; margin: 6px 0 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); }
+.check-tip { padding: 0 3px; font-size: 10px; font-weight: 600; background: rgba(0, 0, 0, 0.55); color: #fff; border: 0; box-shadow: none; }
+.check-tip::before { display: none; }
+.check-est { margin: 0 0 10px; font-size: 0.92rem; }
+.check-form { display: grid; gap: 8px; }
+.check-form label { display: grid; gap: 4px; font-size: 0.9rem; color: var(--muted); }
+.check-form input { padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink); font-size: 1rem; }
+.check-act { display: flex; gap: 10px; margin: 4px 0 8px; }
+.check-act button[type="submit"] {
+  flex: 1; padding: 12px 16px; border: 0; border-radius: 8px; background: var(--brand); color: var(--brand-ink); font-weight: 600;
+}
+.check-act button:disabled { opacity: 0.6; }

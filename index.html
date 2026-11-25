@@ -21,9 +21,10 @@
 
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="log" aria-selected="true">Grazing</button>
-    <button role="tab" data-tab="photos" aria-selected="false">Photos</button>
     <button role="tab" data-tab="paddocks" aria-selected="false">Paddocks</button>
     <button role="tab" data-tab="analysis" aria-selected="false">Analysis</button>
+    <button role="tab" data-tab="photos" aria-selected="false">Photos</button>
+    <button role="tab" data-tab="check" aria-selected="false">Check <span id="check-count" class="badge" hidden></span></button>
   </nav>
 
   <main>
@@ -40,7 +41,8 @@
         They're removed from this list and the farm's database 3 days after they're taken <span id="photos-keep">(the copy in Download stays)</span>.</p>
       <p class="hint"><b>Taking a standard photo:</b> hold the phone at 1 m (about your belt), keep your shadow out of the picture,
         step forward so your toe is at the bottom, and tilt the phone forward until the bar goes green
-        (about 35° from straight down). The tilt is saved with the photo. 🗑 deletes a photo from the app and the database.</p>
+        (about 35° from straight down). The tilt is saved with the photo. 🗑 takes a photo off this phone's list; the farm's copy stays for checking.
+        <b>Check</b> (needs signal) is where you say which paddock each photo is and accept its cover.</p>
       <ul id="photo-list" class="list"></ul>
     </section>
 
@@ -152,6 +154,41 @@
         grazing plan may not be followed. Red dots: not enough feed that day. Each day every paddock grows on the
         cover curve, then the herd eats cows × kg, taking the highest paddock down to 1500 before moving on
         (… = part eaten, finished the next day). Only paddocks in the rotation with a known cover and area count.</p>
+    </section>
+
+    <section id="tab-check" class="tab" hidden>
+      <div id="check-offline" class="check-msg" hidden>
+        <p id="check-offline-text"></p>
+        <button id="check-retry" class="wide" type="button">Try again</button>
+      </div>
+      <p id="check-wait" class="check-msg hint" hidden>Fetching the farm's photos…</p>
+      <p id="check-done" class="check-msg" hidden><span id="check-done-text"></span></p>
+      <div id="check-card" class="check" hidden>
+        <div class="check-nav">
+          <button id="check-back" class="plain" type="button" aria-label="Previous photo">‹ Back</button>
+          <b id="check-pos"></b>
+          <button id="check-skip" class="plain" type="button" aria-label="Next photo">Skip ›</button>
+        </div>
+        <a id="check-link" class="check-photo" target="_blank" rel="noopener"><img id="check-img" alt="Paddock photo"></a>
+        <p id="check-when" class="hint"></p>
+        <div id="check-map" class="check-map" aria-label="Where the photo was taken"></div>
+        <p id="check-est" class="check-est"></p>
+        <form id="check-form" class="check-form">
+          <label>Paddock
+            <input id="check-paddock" list="paddock-names" required autocomplete="off" spellcheck="false"
+              placeholder="Type e.g. D, then pick"></label>
+          <p id="check-guess" class="hint" hidden></p>
+          <label>Cover (kg DM/ha)
+            <input id="check-cover" type="number" inputmode="numeric" min="0" max="10000" step="10" required></label>
+          <div class="check-act">
+            <button id="check-accept" type="submit">Accept</button>
+            <button id="check-delete" class="plain" type="button" aria-label="Delete this photo from the farm">🗑</button>
+          </div>
+        </form>
+        <p class="hint">Accept saves the paddock and cover and moves to the next photo. Photos of the same paddock on the
+          same day are averaged into one reading. 🗑 here deletes the photo from the farm (laptop and every phone).
+          Tap the photo to see it full size.</p>
+      </div>
     </section>
   </main>
 

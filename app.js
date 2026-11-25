@@ -4,6 +4,7 @@ import { encode, shortCode } from "./pluscode.js";
 import { insertExif } from "./exif.js";
 import { uploadCopy } from "./photo-size.js";
 import { Cloud, pendingPhotoFiles, feedSettings } from "./cloud.js";
+import { initCheck, renderCheck, updateCheckCount } from "./check.js";
 
 const store = new Store(localStorage);
 let wasBusy = false;
@@ -40,10 +41,12 @@ function showTab(name) {
     btn.setAttribute("aria-selected", String(btn.dataset.tab === name));
   }
   for (const sec of document.querySelectorAll(".tab")) sec.hidden = sec.id !== `tab-${name}`;
+  document.body.dataset.tab = name;
   if (name === "log") renderLog();
   if (name === "photos") renderPhotos();
   if (name === "paddocks") renderPaddocks();
   if (name === "analysis") renderAnalysis();
+  if (name === "check") renderCheck();
 }
 
 // Cover tags: e = estimate, m5 = measured 5 days ago, p5 = from a photo 5 days ago.
@@ -873,6 +876,8 @@ function refreshAfterSync() {
   if (!$("tab-paddocks").hidden) renderPaddocks();
   if (!$("tab-analysis").hidden) renderAnalysis();
   if (!$("tab-photos").hidden) renderPhotos();
+  if (!$("tab-check").hidden) renderCheck();
+  else updateCheckCount();
 }
 
 $("sync").addEventListener("click", () => {
@@ -931,6 +936,8 @@ renderPaddockOptions();
 renderLog();
 startGps();
 renderGps();
+initCheck({ cloud, store, toast });
+document.body.dataset.tab = "log";
 cloud.countPhotos().catch(() => {});
 renderSync();
 cloud.sync();
