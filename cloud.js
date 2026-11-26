@@ -159,6 +159,8 @@ export class Cloud {
     this.soon(3000);
   }
   async photoTaken(meta, blob) {
+    // Where it goes is decided when it's taken (an adviser may flip the switch before it uploads).
+    if (this.approved) meta.dest ??= this.photoFarm;
     await queuePhoto({ file: meta.file, meta, blob });
     await this.countPhotos();
     this.soon();
@@ -327,9 +329,16 @@ export class Cloud {
     return true;
   }
 
-  /** Where this device's photos go: the farm, or an adviser's own photo space. */
+  /** Where this device's photos go: the farm, or an adviser's own photo space (the adviser's switch). */
   get photoFarm() {
+    if (this.adviser && this.state.photosTo === "farm") return this.state.farmId;
     return this.state.photoFarmId ?? this.state.farmId;
+  }
+  /** An adviser's switch: "farm" (the farm they're on) or "space" (their own adviser space, the default). */
+  setPhotosTo(to) {
+    this.state.photosTo = to;
+    this.saveState();
+    this.onChange();
   }
 
   // ---------- sync ----------
@@ -490,8 +499,8 @@ export class Cloud {
   }
 
   async pushPhotos() {
-    const farm = this.photoFarm; // an adviser's go to their own space, not the farm they're visiting
     for (const { file, meta, blob } of await pendingPhotos()) {
+      const farm = meta.dest ?? this.photoFarm; // an adviser's go to their own space unless they chose the farm
       const path = `${farm}/${file}`;
       await this.request(`/storage/v1/object/photos/${farm}/${encodeURIComponent(file)}`, {
         method: "POST", raw: true, body: blob, headers: { "Content-Type": "image/jpeg", "x-upsert": "true" },

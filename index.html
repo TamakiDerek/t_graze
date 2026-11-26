@@ -28,8 +28,16 @@
   </nav>
 
   <main>
-    <p class="adviser-note">Adviser view: you see the farm as its phones do, but can't change it. Your photos go to
-      your own adviser space (see Review), not to the farm, and stay until you delete them.</p>
+    <div class="adviser-note">
+      <p>Adviser view: you see the farm as its phones do, but can't change it.</p>
+      <label>Photos I take go to
+        <select id="photos-to">
+          <option value="space">my own adviser space</option>
+          <option value="farm" id="photos-to-farm">this farm</option>
+        </select></label>
+      <p class="hint">Choose the farm while you're walking its paddocks: the farm then sees your photos and can accept
+        them. Your own space is private to you and keeps photos from anywhere until you delete them.</p>
+    </div>
     <section id="tab-log" class="tab">
       <table class="log">
         <thead><tr><th>Half-day</th><th>Paddock</th><th>Paddock</th></tr></thead>
@@ -187,8 +195,8 @@
             <button id="check-delete" class="plain" type="button" aria-label="Delete this photo from the farm">🗑</button>
           </div>
         </form>
-        <p class="hint adviser-hint">Your photos from every farm you've visited, newest last, with Haiku's estimate.
-          They stay until you delete them with 🗑. Tap the photo to see it full size.</p>
+        <p class="hint adviser-hint">Your photos, oldest first, with Haiku's estimate: the ones in your own space, and
+          the ones you put on this farm until the farm accepts them. 🗑 deletes one of yours. Tap the photo to see it full size.</p>
         <p class="hint farm-hint">Only photos taken on this phone show here; the laptop shows everyone's.
           Accept saves the paddock and cover and moves to the next photo. Photos of the same paddock on the
           same day are averaged into one reading. 🗑 here deletes the photo from the farm (laptop and every phone).

@@ -46,8 +46,16 @@ export async function updateCheckCount(force = false) {
 }
 
 async function load() {
-  // An adviser sees their own photo space (photos from every farm they've been on), not the farm's.
-  [photos, points] = await Promise.all([fetchFarmPhotos(cloud, cloud.photoFarm), cloud.adviser ? [] : fetchPoints(cloud).catch(() => [])]);
+  // An adviser sees their own photo space (photos from every farm they've been on) and the ones they put on
+  // the farm they're on (the queue below keeps only their own).
+  const space = cloud.state.photoFarmId;
+  const [farm, own, pts] = await Promise.all([
+    fetchFarmPhotos(cloud),
+    cloud.adviser && space && space !== cloud.state.farmId ? fetchFarmPhotos(cloud, space) : [],
+    cloud.adviser ? [] : fetchPoints(cloud).catch(() => []),
+  ]);
+  photos = [...farm, ...own];
+  points = pts;
   loadedAt = Date.now();
   rebuild();
 }

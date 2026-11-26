@@ -329,6 +329,10 @@ body.adviser .adviser-note {
   display: block; margin: 8px 12px 0; padding: 8px 10px; border-radius: 8px;
   background: rgba(127, 127, 127, 0.15); font-size: 0.9rem;
 }
+.adviser-note p { margin: 0 0 6px; }
+.adviser-note label { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-weight: 600; }
+.adviser-note select { font: inherit; padding: 4px 6px; }
+.adviser-note .hint { margin: 6px 0 0; font-weight: normal; }
 body.adviser #check-form > :not(.check-act),
 body.adviser #check-accept,
 body.adviser .farm-hint,
