@@ -14,6 +14,7 @@ const SHELL = [
   "cloud.js",
   "photo-check.js",
   "check.js",
+  "basemap.js",
   "config.js",
   "manifest.webmanifest",
   "icon.svg",

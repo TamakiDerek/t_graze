@@ -3,8 +3,9 @@
 export const SUPABASE_URL = "https://kjllmohuevseekjaeqth.supabase.co";
 export const SUPABASE_KEY = "sb_publishable_5lq0Z9O2xCGDLytWrZAC9Q_CZka8mba";
 
-// LINZ Basemaps aerial imagery for the laptop map (free; CC BY 4.0, attribution shown on the map).
+// LINZ Basemaps aerial imagery for the maps (free; CC BY 4.0, attribution shown on the map). Which farms use
+// it is each farm's own setting (supabase/basemap.sql).
 // Paste the key from LINZ here: a Developer Access key (static, restricted to the app's website), requested
 // free from basemaps@linz.govt.nz. Like the Supabase key above, it's meant to sit in public web code.
-// Empty: the map falls back to Esri World Imagery.
+// Empty: every farm's map shows Esri World Imagery.
 export const LINZ_BASEMAPS_KEY = "";
