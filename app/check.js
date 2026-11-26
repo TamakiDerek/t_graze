@@ -2,7 +2,7 @@
 // the way the laptop map does it. Each card shows the picture, a small map of where it was taken,
 // Haiku's estimate and comment, and a paddock guess; Accept saves the paddock and cover and moves on.
 // Needs signal (it reads and writes the farm's database straight away); without it the tab says so.
-import { LINZ_BASEMAPS_KEY } from "./config.js";
+import { addAerial } from "./basemap.js";
 import { decode } from "./pluscode.js";
 import {
   fetchFarmPhotos, fetchPoints, coverOf, unchecked, estimateText, guessPaddock, guessText, photoLink,
@@ -178,15 +178,7 @@ async function drawMap(p) {
   if (!map) {
     map = L.map("check-map", { zoomControl: false, attributionControl: true });
     map.attributionControl.setPrefix(false);
-    if (LINZ_BASEMAPS_KEY) {
-      L.tileLayer(`https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/{z}/{x}/{y}.webp?api=${encodeURIComponent(LINZ_BASEMAPS_KEY)}`, {
-        maxZoom: 21, maxNativeZoom: 20, attribution: "© LINZ CC BY 4.0",
-      }).addTo(map);
-    } else {
-      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-        maxZoom: 21, maxNativeZoom: 19, attribution: "Imagery © Esri",
-      }).addTo(map);
-    }
+    addAerial(map, cloud, { short: true });
     squares = L.layerGroup().addTo(map);
   }
   map.invalidateSize();
