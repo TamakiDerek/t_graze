@@ -21,7 +21,8 @@
 
   <section id="approve" class="approve" hidden>
     <h2>This laptop needs approving</h2>
-    <p>Send this code to the farm manager. The page checks again every 30 seconds.</p>
+    <p>Send this code to the farm manager (an adviser: to Derek, saying which phone it goes with). The page checks
+      again every 30 seconds.</p>
     <p class="code" id="approve-code">…</p>
   </section>
 
@@ -37,7 +38,10 @@
           <span class="key est"></span> estimated, not checked yet
           <span class="key ok"></span> accepted</p>
         <p id="waiting-count" class="waiting" hidden></p>
-        <p class="hint">Photos are deleted automatically 3 days after they're taken (unless the farm keeps its photos); covers accepted from them are kept.</p>
+        <p class="hint adviser-hint">Adviser: these are your own photos. The ones in your own space (from any farm)
+          are yours to accept: check the cover and, if you like, say where it was. The ones you put on a farm show
+          the farm's acceptance.</p>
+        <p class="hint farm-hint">Photos are deleted automatically 3 days after they're taken (unless the farm keeps its photos); covers accepted from them are kept.</p>
         <ul id="photo-list" class="plist"></ul>
         <div id="shrink" class="shrink" hidden>
           <p class="hint"><span id="shrink-text"></span>New photos go up at about 0.5 MB; the full size stays on the phone.</p>
@@ -50,7 +54,7 @@
         <p id="pick-sub" class="hint"></p>
         <a id="pick-link" target="_blank" rel="noopener"><img id="pick-img" alt="Paddock photo"></a>
         <form id="pick-form">
-          <label>Paddock
+          <label><span id="pick-paddock-label">Paddock</span>
             <input id="pick-paddock" list="paddock-names" required autocomplete="off" spellcheck="false"
               placeholder="Type e.g. D, then pick"></label>
           <p id="pick-guess" class="hint" hidden></p>
@@ -59,7 +63,7 @@
             <input id="pick-cover" type="number" min="0" max="10000" step="10" required></label>
           <p id="pick-est" class="hint"></p>
           <div class="row">
-            <button type="submit">Accept for this paddock</button>
+            <button id="pick-accept" type="submit">Accept for this paddock</button>
           </div>
           <p id="pick-note" class="hint"></p>
           <button id="pick-delete" type="button" class="danger-link">🗑 Delete this photo</button>

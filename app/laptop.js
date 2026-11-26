@@ -44,7 +44,9 @@ function toast(message, isError = false) {
 }
 
 function showStatus() {
-  $("status").textContent = cloud.error ? `Sync problem: ${cloud.error}` : cloud.busy ? "Syncing…" : cloud.approved ? `${cloud.adviser ? "Adviser view of farm" : "Farm"} ${cloud.state.farmName ?? ""}` : "Not approved";
+  $("status").textContent = cloud.error ? `Sync problem: ${cloud.error}` : cloud.busy ? "Syncing…"
+    : !cloud.approved ? "Not approved"
+    : cloud.adviser ? `Adviser: your photos (and ${cloud.state.farmName ?? "the farm"})` : `Farm ${cloud.state.farmName ?? ""}`;
 }
 
 const when = (iso) => new Date(iso).toLocaleString("en-NZ", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -60,19 +62,36 @@ async function start() {
   }
   $("approve").hidden = true;
   $("main").hidden = false;
-  document.body.classList.toggle("adviser", cloud.adviser); // view only: no accepting or deleting photos
+  document.body.classList.toggle("adviser", cloud.adviser); // their own photos only; accepts in their own space
   let phoneOn = false;
   try { phoneOn = localStorage.getItem(PHONE_KEY) === "1"; } catch {}
   showPhone(phoneOn);
   await loadPhotos();
 }
 
+// An adviser sees their own photos: everything in their own photo space (from any farm), plus the
+// ones they put on the farm they're on. adviser_people (supabase/adviser-laptops.sql) is every device
+// sharing their space, so the phone's uploads count as theirs here.
 async function fetchPhotos() {
-  photos = await fetchFarmPhotos(cloud);
+  if (!cloud.adviser) {
+    photos = await fetchFarmPhotos(cloud);
+    return;
+  }
+  const space = cloud.state.photoFarmId;
+  const [own, farm, people] = await Promise.all([
+    space && space !== cloud.state.farmId ? fetchFarmPhotos(cloud, space) : [],
+    fetchFarmPhotos(cloud),
+    cloud.request("/rest/v1/rpc/adviser_people", { method: "POST", body: {} }).catch(() => []),
+  ]);
+  const us = new Set([cloud.state.session?.user_id, ...(Array.isArray(people) ? people : [])]);
+  photos = [...own, ...farm.filter((p) => us.has(p.uploaded_by))];
 }
+/** An adviser's photo in their own space (theirs to accept), not one on a farm (the farm accepts those). */
+const inSpace = (p) => cloud.adviser && p.farm_id !== cloud.state.farmId;
 // Where the map opens: the farm's saved home view, or (until one is saved) the middle of its photos.
 let home = null;
 async function fetchHome() {
+  if (cloud.adviser) return (home = null); // their photos are from all over: open on the middle of them
   const [f] = await cloud.request(`/rest/v1/farms?select=map_lat,map_lng,map_zoom&id=eq.${cloud.state.farmId}`);
   home = f && f.map_lat != null && f.map_lng != null ? { center: [f.map_lat, f.map_lng], zoom: f.map_zoom ?? 16 } : null;
 }
@@ -99,7 +118,7 @@ async function loadPhotos() {
   await Promise.all([fetchPhotos(), fetchHome().catch(() => (home = null)), fetchPoints().catch(() => (points = []))]);
   drawMap();
   drawList();
-  checkSizes().catch((err) => console.warn("photo sizes:", err));
+  if (!cloud.adviser) checkSizes().catch((err) => console.warn("photo sizes:", err));
 }
 
 // New photos and estimates arrive while the page is open: look again every minute and when the
@@ -204,8 +223,8 @@ function drawMap(refit = true) {
           a.href = "#"; a.textContent = text; a.title = title; a.setAttribute("role", "button"); a.setAttribute("aria-label", title);
           L.DomEvent.on(a, "click", (e) => { L.DomEvent.preventDefault(e); L.DomEvent.stopPropagation(e); fn(); });
         };
-        btn("⌂", "Back to the farm's home view", goHome);
-        btn("📌", "Save this view as the farm's home view (for everyone on the farm)", saveHome);
+        btn("⌂", cloud.adviser ? "Back to all your photos" : "Back to the farm's home view", goHome);
+        if (!cloud.adviser) btn("📌", "Save this view as the farm's home view (for everyone on the farm)", saveHome);
         return box;
       },
     });
@@ -224,7 +243,7 @@ function drawMap(refit = true) {
       color: ok ? "#6ee7a0" : coverOf(p) != null ? "#ffd23f" : "#ffffff",
       weight: 2, fillOpacity: 0.25,
     }).addTo(map);
-    const label = coverOf(p) == null ? "?" : `${ok ? `${p.paddock} ` : ""}${coverOf(p)}${ok ? " ✓" : "?"}`;
+    const label = coverOf(p) == null ? "?" : `${ok && p.paddock ? `${p.paddock} ` : ""}${coverOf(p)}${ok ? " ✓" : "?"}`;
     rect.bindTooltip(label, { permanent: true, direction: "right", offset: [6, 0], className: `cov${ok ? " ok" : ""}` });
     rect.on("click", () => choose(p.file));
     rect.baseStyle = { color: rect.options.color, weight: 2, fillOpacity: 0.25 };
@@ -327,9 +346,17 @@ async function choose(file) {
   $("pick").hidden = false;
   $("pick-title").textContent = chosen.plus_code.slice(4);
   $("pick-sub").textContent = `${when(chosen.taken_at)} · ±${Math.round(chosen.accuracy_m ?? 0)} m`;
+  // An adviser accepts the photos in their own space (any paddock or place, typed freely); the ones on a
+  // farm are the farm's to accept, so those just show.
+  const own = inSpace(chosen);
+  document.body.classList.toggle("farm-photo", cloud.adviser && !own);
+  $("pick-paddock-label").textContent = own ? "Paddock or place (optional)" : "Paddock";
+  $("pick-paddock").required = !own;
+  $("pick-paddock").placeholder = own ? "e.g. Smith's, P12" : "Type e.g. D, then pick";
+  $("pick-accept").textContent = own ? "Accept this cover" : "Accept for this paddock";
   // A typing box with suggestions: "D" lists only the D paddocks (a dropdown jumps to D01 at the bottom).
-  $("paddock-names").replaceChildren(...store.paddocks.map((n) => new Option(n)));
-  const guess = chosen.paddock ? null : guessPaddock(chosen);
+  $("paddock-names").replaceChildren(...(own ? [] : store.paddocks.map((n) => new Option(n))));
+  const guess = chosen.paddock || cloud.adviser ? null : guessPaddock(chosen);
   $("pick-paddock").value = chosen.paddock ?? guess?.paddock ?? "";
   $("pick-guess").hidden = !guess;
   if (guess) {
@@ -337,8 +364,13 @@ async function choose(file) {
   }
   $("pick-cover").value = coverOf(chosen) ?? "";
   $("pick-est").textContent = estimateText(chosen);
-  const sameDay = chosen.paddock ? photoDayCover(photos, chosen.paddock, isoDate(new Date(chosen.taken_at))) : null;
-  $("pick-note").textContent = chosen.cover_accepted != null
+  const sameDay = chosen.paddock && !cloud.adviser ? photoDayCover(photos, chosen.paddock, isoDate(new Date(chosen.taken_at))) : null;
+  $("pick-note").textContent = own
+    ? (chosen.cover_accepted != null ? `You accepted ${chosen.cover_accepted} on ${when(chosen.accepted_at)}. Accepting again replaces it. ` : "") +
+      "This photo is in your own adviser space: only you see it, and it stays until you delete it."
+    : cloud.adviser
+    ? (chosen.cover_accepted != null ? `${cloud.state.farmName} accepted ${chosen.cover_accepted} for ${chosen.paddock}.` : `On ${cloud.state.farmName}: the farm accepts it.`)
+    : chosen.cover_accepted != null
     ? `Accepted ${chosen.cover_accepted} for ${chosen.paddock} on ${when(chosen.accepted_at)}.` +
       (sameDay?.count > 1 ? ` With the other ${sameDay.count - 1} photo(s) of ${chosen.paddock} that day, its reading is the average: ${sameDay.cover}.` : "") +
       " Accepting again replaces it."
@@ -360,7 +392,7 @@ async function choose(file) {
 $("pick-delete").addEventListener("click", async () => {
   if (!chosen) return;
   const file = chosen.file;
-  if (!confirm(`Delete ${file} from the farm's database?\n\nAny cover already accepted from it stays. This can't be undone (the phone that took it may still have the full-size copy).`)) return;
+  if (!confirm(`Delete ${file} from ${inSpace(chosen) ? "your adviser space" : "the farm's database"}?\n\nAny cover already accepted from it stays. This can't be undone (the phone that took it may still have the full-size copy).`)) return;
   try {
     await deleteFarmPhoto(cloud, chosen);
     store.removePhoto(file);
@@ -388,6 +420,7 @@ $("pick-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!chosen) return;
   const typed = $("pick-paddock").value.trim();
+  if (inSpace(chosen)) return acceptOwn(chosen, typed);
   const paddock = findPaddock(store.paddocks, typed);
   if (!paddock) {
     toast(`"${typed}" isn't one of the farm's paddocks. Type its name, e.g. D01, and pick it from the list.`, true);
@@ -408,5 +441,24 @@ $("pick-form").addEventListener("submit", async (event) => {
     toast(`Not saved: ${err.message}`, true);
   }
 });
+
+// An adviser's own photo: the cover (and what they called the place) saved against the photo. No paddock
+// readings: it isn't on a farm.
+async function acceptOwn(photo, label) {
+  const cover = Math.round(Number($("pick-cover").value));
+  try {
+    await cloud.request(`/rest/v1/photos?farm_id=eq.${photo.farm_id}&file=eq.${encodeURIComponent(photo.file)}`, {
+      method: "PATCH", headers: { Prefer: "return=minimal" },
+      body: { paddock: label || null, cover_accepted: cover, accepted_at: new Date().toISOString() },
+    });
+    await fetchPhotos();
+    toast(`Accepted ${cover}${label ? ` for ${label}` : ""}.`);
+    drawMap(false);
+    drawList();
+    choose(photo.file);
+  } catch (err) {
+    toast(`Not saved: ${err.message}`, true);
+  }
+}
 
 start();

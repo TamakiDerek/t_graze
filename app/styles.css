@@ -337,8 +337,8 @@ body.adviser #check-form > :not(.check-act),
 body.adviser #check-accept,
 body.adviser .farm-hint,
 body.adviser #add-paddock,
-body.adviser #pick-form,
-body.adviser #pick-delete { display: none !important; }
+body.adviser.farm-photo #pick-form,
+body.adviser.farm-photo #pick-delete { display: none !important; }
 .adviser-hint { display: none; }
 body.adviser .adviser-hint { display: block; }
 body.adviser #log-rows,
