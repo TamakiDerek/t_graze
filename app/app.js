@@ -111,6 +111,14 @@ function viewOnly() {
   return true;
 }
 
+// An adviser's switch: photos to their own space, or to the farm they're walking.
+$("photos-to").addEventListener("change", (event) => {
+  cloud.setPhotosTo(event.target.value);
+  toast(event.target.value === "farm"
+    ? `New photos go to ${cloud.state.farmName || "the farm"}: the farm sees them and can accept them.`
+    : "New photos go to your own adviser space.");
+});
+
 // Tap a paddock name (Analysis chart or Paddocks table): take it out of the rotation, or put it back in.
 function toggleRotation(name) {
   if (viewOnly()) return;
@@ -856,6 +864,10 @@ function renderSync() {
   renderOwner();
   document.body.classList.toggle("adviser", cloud.adviser);
   $("check-label").textContent = cloud.adviser ? "Review" : "Accept";
+  if (cloud.adviser) {
+    $("photos-to-farm").textContent = `this farm (${cloud.state.farmName || "the farm"})`;
+    $("photos-to").value = cloud.state.photosTo === "farm" ? "farm" : "space";
+  }
   chip.classList.toggle("bad", Boolean(cloud.error));
   chip.textContent = cloud.busy ? "☁ …" : !cloud.approved ? "☁ off" : waiting ? `☁ ${waiting}` : "☁ ✓";
 
