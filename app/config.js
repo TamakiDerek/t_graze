@@ -8,4 +8,4 @@ export const SUPABASE_KEY = "sb_publishable_5lq0Z9O2xCGDLytWrZAC9Q_CZka8mba";
 // Paste the key from LINZ here: a Developer Access key (static, restricted to the app's website), requested
 // free from basemaps@linz.govt.nz. Like the Supabase key above, it's meant to sit in public web code.
 // Empty: every farm's map shows Esri World Imagery.
-export const LINZ_BASEMAPS_KEY = "";
+export const LINZ_BASEMAPS_KEY = "d01m5g152e32j17h1ax98gvmfgb";
