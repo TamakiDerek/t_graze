@@ -243,10 +243,11 @@ export function coverRanking(store, now) {
  */
 /**
  * How sure the feed ahead is: today is known; each day further out the average cover could be this
- * much higher or lower (kg DM/ha per day ahead), because growth varies and the grazing plan may not be
- * followed. A rough allowance, not a statistic: about ±400 after three weeks.
+ * much higher or lower (kg DM/ha per day ahead). Single paddocks vary a lot (some eaten, some growing
+ * fast), but the average over the whole farm moves slowly, so the allowance is small. A rough allowance,
+ * not a statistic: the outer fan, about ±42 after three weeks; the inner fan is half of it.
  */
-export const FORECAST_SPREAD_PER_DAY = 20;
+export const FORECAST_SPREAD_PER_DAY = 2;
 
 /** The forecast's average cover with its fan: [{ d, date, afc, lo, hi }] for days that have a cover. */
 export function forecastBand(days, spreadPerDay = FORECAST_SPREAD_PER_DAY) {
@@ -259,7 +260,7 @@ export function forecastBand(days, spreadPerDay = FORECAST_SPREAD_PER_DAY) {
  * Y range for the average-cover chart: today's average ±half (rounded out to 100s), widened only if
  * the forecast line itself goes outside it. The fan is cut off at the edges.
  */
-export function forecastRange(band, half = 500) {
+export function forecastRange(band, half = 100) {
   if (!band.length) return null;
   const mid = Math.round(band[0].afc / 100) * 100;
   const lo = Math.min(mid - half, Math.floor(Math.min(...band.map((x) => x.afc)) / 100) * 100);
