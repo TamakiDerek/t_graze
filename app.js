@@ -180,12 +180,14 @@ function feedLine(days) {
   const y = (v) => T + ((H - T - B) * (range.hi - Math.min(range.hi, Math.max(range.lo, v)))) / (range.hi - range.lo);
   const root = svg("svg", { viewBox: `0 0 ${W} ${H}`, class: "feed-line", role: "img",
     "aria-label": `Average cover, today ${band[0].afc} kg DM/ha, in 3 weeks about ${band.at(-1).afc}` });
-  // y grid every 250 kg, labelled
-  for (let v = Math.ceil(range.lo / 250) * 250; v <= range.hi; v += 250) {
-    root.append(svg("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), class: v % 500 ? "grid minor" : "grid" }));
-    if (v % 500 === 0) root.append(svg("text", { x: L - 4, y: y(v) + 3.5, class: "ylab" }, String(v)));
+  // y grid, labelled: every 50 kg (labels each 100) on the usual narrow range, every 250 (labels each
+  // 500) when the line has pushed it wide
+  const [step, every] = range.hi - range.lo <= 600 ? [50, 100] : [250, 500];
+  for (let v = Math.ceil(range.lo / step) * step; v <= range.hi; v += step) {
+    root.append(svg("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), class: v % every ? "grid minor" : "grid" }));
+    if (v % every === 0) root.append(svg("text", { x: L - 4, y: y(v) + 3.5, class: "ylab" }, String(v)));
   }
-  // fan: outer (full spread) and inner (half) bands
+  // fan: outer (full spread, 2 a day) and inner (half, 1 a day) bands
   const area = (k) => {
     const top = band.map((p) => `${x(p.d)},${y(p.afc + (p.hi - p.afc) * k)}`);
     const bottom = band.slice().reverse().map((p) => `${x(p.d)},${y(p.afc - (p.afc - p.lo) * k)}`);
